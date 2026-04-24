@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import { getExpenses, deleteExpense } from "./services/api";
-import { calculateBalances, simplifyDebts } from "./utils/calc";
+import { calculateBalances, calculateTransactions } from "./utils/calc";
 import { ToastContainer, toast } from "react-toastify";
+import { calculateTransactionsByExpense } from "./utils/calc";
 import "react-toastify/dist/ReactToastify.css";
 
 import Header from "./components/Header";
@@ -28,7 +29,7 @@ function App() {
 
     const balance = calculateBalances(data);
     setBalances(balance);
-    setTransactions(simplifyDebts(balance));
+    setTransactions(calculateTransactionsByExpense(data));
   };
 
   // 🔥 DELETE XỊN HƠN
@@ -54,7 +55,7 @@ function App() {
   }, []);
 
   return (
-    <div className="min-h-screen bg-gray-100">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50">
       <div className="max-w-md mx-auto p-4 space-y-4">
         <Header />
 
@@ -67,7 +68,7 @@ function App() {
         <Transactions transactions={transactions} />
 
         <Total expenses={expenses} />
-
+        <Transactions groups={transactions} />
         <ToastContainer position="top-center" autoClose={2000} />
       </div>
     </div>

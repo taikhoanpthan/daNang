@@ -2,15 +2,21 @@ export const calculateBalances = (expenses) => {
   const balance = {};
 
   expenses.forEach((exp) => {
-    const share = exp.amount / exp.participants.length;
+    const participants = Array.isArray(exp.participants)
+      ? exp.participants
+      : [];
 
-    // tất cả đều phải trả (kể cả payer)
-    exp.participants.forEach((p) => {
+    if (!exp.amount || !exp.payer || participants.length === 0) return;
+
+    const share = exp.amount / participants.length;
+
+    // tất cả đều trừ (kể cả người trả)
+    participants.forEach((p) => {
       if (!balance[p]) balance[p] = 0;
       balance[p] -= share;
     });
 
-    // người trả được cộng lại toàn bộ tiền đã trả
+    // người trả được cộng lại
     if (!balance[exp.payer]) balance[exp.payer] = 0;
     balance[exp.payer] += exp.amount;
   });
@@ -18,40 +24,58 @@ export const calculateBalances = (expenses) => {
   return balance;
 };
 
-export const simplifyDebts = (balances) => {
-  const debtors = [];
-  const creditors = [];
+export const calculateTransactions = (expenses) => {
+  const transactions = [];
 
-  Object.entries(balances).forEach(([name, amount]) => {
-    if (amount < 0) debtors.push({ name, amount });
-    if (amount > 0) creditors.push({ name, amount });
+  expenses.forEach((exp) => {
+    const participants = Array.isArray(exp.participants)
+      ? exp.participants
+      : [];
+
+    if (!exp.amount || !exp.payer || participants.length === 0) return;
+
+    const share = exp.amount / participants.length;
+
+    participants.forEach((p) => {
+      if (p !== exp.payer) {
+        transactions.push({
+          from: p,
+          to: exp.payer,
+          amount: share,
+          note: exp.note || "",
+          date: exp.date || "",
+        });
+      }
+    });
   });
 
-  const result = [];
+  return transactions;
+};
+export const calculateTransactionsByExpense = (expenses) => {
+  return expenses.map((exp) => {
+    const participants = Array.isArray(exp.participants)
+      ? exp.participants
+      : [];
 
-  while (debtors.length && creditors.length) {
-    // 🔥 sort mỗi vòng
-    debtors.sort((a, b) => a.amount - b.amount); // âm nhiều nhất lên đầu
-    creditors.sort((a, b) => b.amount - a.amount); // dương nhiều nhất lên đầu
+    if (!exp.amount || !exp.payer || participants.length === 0) return null;
 
-    let debtor = debtors[0];
-    let creditor = creditors[0];
+    const share = exp.amount / participants.length;
 
-    const pay = Math.min(-debtor.amount, creditor.amount);
+    const list = participants
+      .filter((p) => p !== exp.payer)
+      .map((p) => ({
+        from: p,
+        to: exp.payer,
+        amount: share,
+      }));
 
-    result.push({
-      from: debtor.name,
-      to: creditor.name,
-      amount: pay,
-    });
-
-    debtor.amount += pay;
-    creditor.amount -= pay;
-
-    // xoá nếu xong
-    if (Math.abs(debtor.amount) < 1) debtors.shift();
-    if (Math.abs(creditor.amount) < 1) creditors.shift();
-  }
-
-  return result;
+    return {
+      id: exp.id,
+      note: exp.note || "Không rõ",
+      payer: exp.payer,
+      total: exp.amount,
+      date: exp.date,
+      transactions: list,
+    };
+  }).filter(Boolean);
 };
