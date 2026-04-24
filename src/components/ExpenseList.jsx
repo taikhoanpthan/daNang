@@ -22,6 +22,9 @@ export default function ExpenseList({ expenses = [], onDelete }) {
             key={e.id}
             initial={{ opacity: 0, x: 30 }}
             animate={{ opacity: 1, x: 0 }}
+            whileInView={{ opacity: 1, x: 0 }}
+            transition={{ duration: 0.4 }}
+            viewport={{ once: true }}
             className="bg-white p-3 rounded-xl shadow flex justify-between items-center"
           >
             {/* avatars */}

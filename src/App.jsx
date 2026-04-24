@@ -1,9 +1,10 @@
 import { useEffect, useState } from "react";
 import { getExpenses, deleteExpense } from "./services/api";
-import { calculateBalances, calculateTransactions } from "./utils/calc";
+import { calculateBalances, calculateTransactionsByExpense } from "./utils/calc";
 import { ToastContainer, toast } from "react-toastify";
-import { calculateTransactionsByExpense } from "./utils/calc";
 import "react-toastify/dist/ReactToastify.css";
+
+import FadeIn from "./components/FadeIn";
 
 import Header from "./components/Header";
 import ExpenseForm from "./components/ExpenseForm";
@@ -29,24 +30,24 @@ function App() {
 
     const balance = calculateBalances(data);
     setBalances(balance);
-    setTransactions(calculateTransactionsByExpense(data));
+
+    const grouped = calculateTransactionsByExpense(data);
+    setTransactions(grouped);
   };
 
-  // 🔥 DELETE XỊN HƠN
   const handleDelete = async (id) => {
     const newExpenses = expenses.filter((e) => e.id !== id);
 
-    // update UI ngay
     updateAll(newExpenses);
 
     toast.info("Đang xoá...");
 
     try {
       await deleteExpense(id);
-      toast.success("Đã xoá khoản chi 🗑️");
+      toast.success("Đã xoá 🗑️");
     } catch (err) {
       toast.error("Xoá thất bại ❌");
-      loadData(); // rollback
+      loadData();
     }
   };
 
@@ -57,18 +58,31 @@ function App() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50">
       <div className="max-w-md mx-auto p-4 space-y-4">
-        <Header />
 
-        <ExpenseForm users={users} reload={loadData} />
+        <FadeIn>
+          <Header />
+        </FadeIn>
 
-        <ExpenseList expenses={expenses} onDelete={handleDelete} />
+        <FadeIn delay={0.1}>
+          <ExpenseForm users={users} reload={loadData} />
+        </FadeIn>
 
-        <Summary balances={balances} />
+        <FadeIn delay={0.2}>
+          <ExpenseList expenses={expenses} onDelete={handleDelete} />
+        </FadeIn>
 
-        <Transactions transactions={transactions} />
+        <FadeIn delay={0.3}>
+          <Summary balances={balances} />
+        </FadeIn>
 
-        <Total expenses={expenses} />
-        <Transactions groups={transactions} />
+        <FadeIn delay={0.4}>
+          <Transactions groups={transactions} />
+        </FadeIn>
+
+        <FadeIn delay={0.5}>
+          <Total expenses={expenses} />
+        </FadeIn>
+
         <ToastContainer position="top-center" autoClose={2000} />
       </div>
     </div>
