@@ -30,6 +30,10 @@ export const simplifyDebts = (balances) => {
   const result = [];
 
   while (debtors.length && creditors.length) {
+    // 🔥 sort mỗi vòng
+    debtors.sort((a, b) => a.amount - b.amount); // âm nhiều nhất lên đầu
+    creditors.sort((a, b) => b.amount - a.amount); // dương nhiều nhất lên đầu
+
     let debtor = debtors[0];
     let creditor = creditors[0];
 
@@ -44,8 +48,9 @@ export const simplifyDebts = (balances) => {
     debtor.amount += pay;
     creditor.amount -= pay;
 
-    if (debtor.amount === 0) debtors.shift();
-    if (creditor.amount === 0) creditors.shift();
+    // xoá nếu xong
+    if (Math.abs(debtor.amount) < 1) debtors.shift();
+    if (Math.abs(creditor.amount) < 1) creditors.shift();
   }
 
   return result;

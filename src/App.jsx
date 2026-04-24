@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
-import { getExpenses } from "./services/api";
-import { calculateBalances } from "./utils/calc";
-import { simplifyDebts } from "./utils/calc";
+import { getExpenses, deleteExpense } from "./services/api";
+import { calculateBalances, simplifyDebts } from "./utils/calc";
+import { ToastContainer, toast } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
 
 import Header from "./components/Header";
 import ExpenseForm from "./components/ExpenseForm";
@@ -19,13 +20,33 @@ function App() {
 
   const loadData = async () => {
     const res = await getExpenses();
-    const data = res.data;
+    updateAll(res.data);
+  };
 
+  const updateAll = (data) => {
     setExpenses(data);
 
     const balance = calculateBalances(data);
     setBalances(balance);
     setTransactions(simplifyDebts(balance));
+  };
+
+  // 🔥 DELETE XỊN HƠN
+  const handleDelete = async (id) => {
+    const newExpenses = expenses.filter((e) => e.id !== id);
+
+    // update UI ngay
+    updateAll(newExpenses);
+
+    toast.info("Đang xoá...");
+
+    try {
+      await deleteExpense(id);
+      toast.success("Đã xoá khoản chi 🗑️");
+    } catch (err) {
+      toast.error("Xoá thất bại ❌");
+      loadData(); // rollback
+    }
   };
 
   useEffect(() => {
@@ -39,12 +60,15 @@ function App() {
 
         <ExpenseForm users={users} reload={loadData} />
 
-        <ExpenseList expenses={expenses} />
+        <ExpenseList expenses={expenses} onDelete={handleDelete} />
 
         <Summary balances={balances} />
 
         <Transactions transactions={transactions} />
+
         <Total expenses={expenses} />
+
+        <ToastContainer position="top-center" autoClose={2000} />
       </div>
     </div>
   );

@@ -1,10 +1,12 @@
 import { useState } from "react";
 import { addExpense } from "../services/api";
 import { motion } from "framer-motion";
-import { formatVND } from "../utils/format";
+import { Wallet, User, FileText } from "lucide-react";
+import { toast } from "react-toastify";
 
-export default function ExpenseForm({ users, reload }) {
+export default function ExpenseForm({ users = [], reload }) {
   const [amount, setAmount] = useState("");
+  const [displayAmount, setDisplayAmount] = useState("");
   const [payer, setPayer] = useState("");
   const [participants, setParticipants] = useState([]);
   const [note, setNote] = useState("");
@@ -19,7 +21,7 @@ export default function ExpenseForm({ users, reload }) {
 
   const handleAdd = async () => {
     if (!amount || !payer || participants.length === 0) {
-      alert("❗ Nhập đầy đủ thông tin");
+      toast.error("❗ Nhập đầy đủ thông tin");
       return;
     }
 
@@ -35,8 +37,10 @@ export default function ExpenseForm({ users, reload }) {
       date: new Date().toISOString(),
     });
 
-    // reset form
+    toast.success("✅ Đã thêm!");
+
     setAmount("");
+    setDisplayAmount("");
     setPayer("");
     setParticipants([]);
     setNote("");
@@ -51,42 +55,49 @@ export default function ExpenseForm({ users, reload }) {
       className="bg-white p-4 rounded-2xl shadow space-y-3"
     >
       {/* NOTE */}
-      <input
-        value={note}
-        placeholder="📝 Chi cho cái gì (ăn uống, khách sạn...)"
-        className="w-full border p-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400"
-        onChange={(e) => setNote(e.target.value)}
-      />
+      <div className="flex items-center border p-2 rounded-lg">
+        <FileText size={18} className="mr-2 text-gray-500" />
+        <input
+          value={note}
+          placeholder="Chi cho cái gì..."
+          className="w-full outline-none"
+          onChange={(e) => setNote(e.target.value)}
+        />
+      </div>
 
       {/* AMOUNT */}
-      <input
-        value={amount}
-        placeholder="💰 Nhập số tiền"
-        className="w-full border p-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-400"
-        onChange={(e) => {
-          const value = e.target.value.replace(/\D/g, "");
-          setAmount(value);
-        }}
-      />
+      <div className="flex items-center border p-2 rounded-lg">
+        <Wallet size={18} className="mr-2 text-green-500" />
+        <input
+          value={displayAmount}
+          placeholder="Nhập số tiền"
+          className="w-full outline-none"
+          onChange={(e) => {
+            const raw = e.target.value.replace(/\D/g, "");
+            setAmount(raw);
 
-      {/* FORMAT PREVIEW */}
-      {amount && (
-        <div className="text-green-600 text-sm">
-          = {formatVND(amount)} đ
-        </div>
-      )}
+            const formatted = raw
+              ? Number(raw).toLocaleString("vi-VN")
+              : "";
+            setDisplayAmount(formatted);
+          }}
+        />
+      </div>
 
       {/* PAYER */}
-      <select
-        value={payer}
-        className="w-full border p-2 rounded-lg focus:outline-none"
-        onChange={(e) => setPayer(e.target.value)}
-      >
-        <option value="">👤 Người trả</option>
-        {users.map((u) => (
-          <option key={u}>{u}</option>
-        ))}
-      </select>
+      <div className="flex items-center border p-2 rounded-lg">
+        <User size={18} className="mr-2 text-blue-500" />
+        <select
+          value={payer}
+          className="w-full outline-none"
+          onChange={(e) => setPayer(e.target.value)}
+        >
+          <option value="">Người trả</option>
+          {users.map((u) => (
+            <option key={u}>{u}</option>
+          ))}
+        </select>
+      </div>
 
       {/* PARTICIPANTS */}
       <div className="flex gap-2 flex-wrap">
