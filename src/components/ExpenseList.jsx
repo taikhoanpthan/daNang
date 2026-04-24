@@ -2,10 +2,14 @@ import { motion } from "framer-motion";
 import { formatVND } from "../utils/format";
 import { Trash2 } from "lucide-react";
 import { usersMeta } from "../utils/user";
+import { simplifyDebts } from "../utils/calc";
 
 export default function ExpenseList({ expenses = [], onDelete }) {
+  const finalDebts = simplifyDebts(expenses);
+
   return (
-    <div className="space-y-2">
+    <div className="space-y-3">
+      {/* ===== LIST EXPENSE ===== */}
       {expenses.length === 0 && (
         <div className="text-center text-gray-400 text-sm">
           Chưa có khoản chi nào
@@ -22,9 +26,7 @@ export default function ExpenseList({ expenses = [], onDelete }) {
             key={e.id}
             initial={{ opacity: 0, x: 30 }}
             animate={{ opacity: 1, x: 0 }}
-            whileInView={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.4 }}
-            viewport={{ once: true }}
             className="bg-white p-3 rounded-xl shadow flex justify-between items-center"
           >
             {/* avatars */}
@@ -72,6 +74,54 @@ export default function ExpenseList({ expenses = [], onDelete }) {
           </motion.div>
         );
       })}
+
+      {/* ===== KẾT TOÁN ===== */}
+      {finalDebts.length > 0 && (
+        <div className="bg-gray-50 p-3 rounded-xl shadow">
+          <div className="font-bold text-gray-700 mb-2">
+            💸 Tổng kết thanh toán
+          </div>
+
+          <div className="space-y-2">
+            {finalDebts.map((t, index) => (
+              <div
+                key={index}
+                className="flex justify-between items-center text-sm bg-white p-2 rounded-lg"
+              >
+                <div className="flex items-center gap-2">
+                  {/* from avatar */}
+                  <div
+                    className={`w-6 h-6 rounded-full text-white text-xs flex items-center justify-center ${
+                      usersMeta[t.from]?.color || "bg-gray-400"
+                    }`}
+                  >
+                    {usersMeta[t.from]?.short || "?"}
+                  </div>
+
+                  <span className="text-gray-600">→</span>
+
+                  {/* to avatar */}
+                  <div
+                    className={`w-6 h-6 rounded-full text-white text-xs flex items-center justify-center ${
+                      usersMeta[t.to]?.color || "bg-gray-400"
+                    }`}
+                  >
+                    {usersMeta[t.to]?.short || "?"}
+                  </div>
+                </div>
+
+                <div className="text-gray-700">
+                  {t.from} trả {t.to}
+                </div>
+
+                <div className="font-bold text-red-500">
+                  {formatVND(t.amount)} đ
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
