@@ -83,12 +83,11 @@ export const calculateTransactionsByExpense = (expenses) => {
 export const simplifyDebts = (expenses) => {
   const balance = calculateBalances(expenses);
 
-  const creditors = []; // người được nhận tiền
-  const debtors = [];   // người phải trả
+  const creditors = [];
+  const debtors = [];
 
-  // phân loại
   Object.keys(balance).forEach((person) => {
-    const amount = parseFloat(balance[person].toFixed(2));
+    const amount = Math.round(balance[person] * 100) / 100;
 
     if (amount > 0) {
       creditors.push({ person, amount });
@@ -97,10 +96,14 @@ export const simplifyDebts = (expenses) => {
     }
   });
 
+  // sort để ổn định
+  creditors.sort((a, b) => b.amount - a.amount);
+  debtors.sort((a, b) => b.amount - a.amount);
+
   const result = [];
 
-  let i = 0; // debtor
-  let j = 0; // creditor
+  let i = 0;
+  let j = 0;
 
   while (i < debtors.length && j < creditors.length) {
     const debt = debtors[i];
@@ -111,11 +114,15 @@ export const simplifyDebts = (expenses) => {
     result.push({
       from: debt.person,
       to: credit.person,
-      amount: parseFloat(payAmount.toFixed(2)),
+      amount: Math.round(payAmount * 100) / 100,
     });
 
     debt.amount -= payAmount;
     credit.amount -= payAmount;
+
+    // fix số lẻ
+    debt.amount = Math.round(debt.amount * 100) / 100;
+    credit.amount = Math.round(credit.amount * 100) / 100;
 
     if (debt.amount === 0) i++;
     if (credit.amount === 0) j++;

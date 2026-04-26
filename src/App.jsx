@@ -1,6 +1,9 @@
 import { useEffect, useState } from "react";
 import { getExpenses, deleteExpense } from "./services/api";
-import { calculateBalances, calculateTransactionsByExpense } from "./utils/calc";
+import {
+  calculateBalances,
+  calculateTransactionsByExpense,
+} from "./utils/calc";
 import { ToastContainer, toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 
@@ -38,15 +41,16 @@ function App() {
   const handleDelete = async (id) => {
     const newExpenses = expenses.filter((e) => e.id !== id);
 
+    // update UI trước (optimistic UI)
     updateAll(newExpenses);
-
-    toast.info("Đang xoá...");
 
     try {
       await deleteExpense(id);
       toast.success("Đã xoá 🗑️");
     } catch (err) {
       toast.error("Xoá thất bại ❌");
+
+      // rollback nếu fail
       loadData();
     }
   };
@@ -58,7 +62,6 @@ function App() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50">
       <div className="max-w-md mx-auto p-4 space-y-4">
-
         <FadeIn>
           <Header />
         </FadeIn>
@@ -66,17 +69,15 @@ function App() {
         <FadeIn delay={0.1}>
           <ExpenseForm users={users} reload={loadData} />
         </FadeIn>
-
+        <FadeIn delay={0.4}>
+          <Transactions groups={transactions} />
+        </FadeIn>
         <FadeIn delay={0.2}>
           <ExpenseList expenses={expenses} onDelete={handleDelete} />
         </FadeIn>
 
         <FadeIn delay={0.3}>
           <Summary balances={balances} />
-        </FadeIn>
-
-        <FadeIn delay={0.4}>
-          <Transactions groups={transactions} />
         </FadeIn>
 
         <FadeIn delay={0.5}>
