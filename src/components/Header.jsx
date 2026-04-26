@@ -20,7 +20,7 @@ export default function Header() {
         <div>
           <div className="flex items-center gap-2 text-lg font-semibold">
             <Wallet size={20} />
-            Chi tiêu nhóm
+            Chi tiêu nhóm - Đà Nẵng
           </div>
 
           <p className="text-xs opacity-80">

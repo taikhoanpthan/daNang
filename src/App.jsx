@@ -1,9 +1,6 @@
 import { useEffect, useState } from "react";
 import { getExpenses, deleteExpense } from "./services/api";
-import {
-  calculateBalances,
-  calculateTransactionsByExpense,
-} from "./utils/calc";
+import { calculateBalances } from "./utils/calc";
 import { ToastContainer, toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 
@@ -19,29 +16,31 @@ import Total from "./components/Total";
 function App() {
   const [expenses, setExpenses] = useState([]);
   const [balances, setBalances] = useState({});
-  const [transactions, setTransactions] = useState([]);
 
   const users = ["Mỹ", "An", "Khương", "Đạt", "Dương"];
 
+  // LOAD DATA
   const loadData = async () => {
-    const res = await getExpenses();
-    updateAll(res.data);
+    try {
+      const res = await getExpenses();
+      updateAll(res.data);
+    } catch (err) {
+      toast.error("Không tải được dữ liệu ❌");
+    }
   };
 
+  // UPDATE STATE
   const updateAll = (data) => {
     setExpenses(data);
 
     const balance = calculateBalances(data);
     setBalances(balance);
-
-    const grouped = calculateTransactionsByExpense(data);
-    setTransactions(grouped);
   };
 
+  // DELETE (optimistic UI)
   const handleDelete = async (id) => {
     const newExpenses = expenses.filter((e) => e.id !== id);
 
-    // update UI trước (optimistic UI)
     updateAll(newExpenses);
 
     try {
@@ -49,9 +48,7 @@ function App() {
       toast.success("Đã xoá 🗑️");
     } catch (err) {
       toast.error("Xoá thất bại ❌");
-
-      // rollback nếu fail
-      loadData();
+      loadData(); // rollback
     }
   };
 
@@ -69,9 +66,11 @@ function App() {
         <FadeIn delay={0.1}>
           <ExpenseForm users={users} reload={loadData} />
         </FadeIn>
+
         <FadeIn delay={0.4}>
-          <Transactions groups={transactions} />
+          <Transactions expenses={expenses} />
         </FadeIn>
+
         <FadeIn delay={0.2}>
           <ExpenseList expenses={expenses} onDelete={handleDelete} />
         </FadeIn>
@@ -84,7 +83,11 @@ function App() {
           <Total expenses={expenses} />
         </FadeIn>
 
-        <ToastContainer position="top-center" autoClose={2000} />
+        <ToastContainer
+          position="top-center"
+          autoClose={2000}
+          limit={2}
+        />
       </div>
     </div>
   );
