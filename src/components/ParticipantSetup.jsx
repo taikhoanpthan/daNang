@@ -1,24 +1,57 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { toast } from "react-toastify";
 import { motion, AnimatePresence } from "framer-motion";
-import { getAllGroups, deleteGroup } from "../services/api";
+import {
+  getAllGroups,
+  deleteGroup,
+  deleteExpenseByGroupId,
+} from "../services/api";
 
 export default function ParticipantSetup({ onDone, onJoin }) {
   const [mode, setMode] = useState("create");
 
-  const [groupName, setGroupName] = useState(""); // ✅ NEW
+  const [groupName, setGroupName] = useState("");
   const [input, setInput] = useState("");
   const [users, setUsers] = useState([]);
   const [groupId, setGroupId] = useState("");
-
   const [groups, setGroups] = useState([]);
   const [loading, setLoading] = useState(false);
 
-  const colors = ["#6366f1", "#ec4899", "#10b981", "#f59e0b"];
+  // ================= COLOR SYSTEM (NO DUPLICATE GUARANTEE) =================
+  const colors = [
+    "#6366f1",
+    "#ec4899",
+    "#10b981",
+    "#f59e0b",
+    "#ef4444",
+    "#14b8a6",
+    "#a855f7",
+    "#22c55e",
+    "#3b82f6",
+    "#eab308",
+  ];
 
-  const getColor = () =>
-    colors[Math.floor(Math.random() * colors.length)];
+  const usedColorsRef = useRef(new Set());
 
+  const getColor = () => {
+    const used = usedColorsRef.current;
+
+    const available = colors.filter((c) => !used.has(c));
+
+    const color =
+      available.length > 0
+        ? available[Math.floor(Math.random() * available.length)]
+        : colors[Math.floor(Math.random() * colors.length)];
+
+    used.add(color);
+    return color;
+  };
+
+  const resetColors = () => {
+    usedColorsRef.current = new Set();
+  };
+
+  // ================= ADD USER =================
   const addUser = () => {
     const name = input.trim();
     if (!name) return;
@@ -28,8 +61,8 @@ export default function ParticipantSetup({ onDone, onJoin }) {
       return;
     }
 
-    setUsers([
-      ...users,
+    setUsers((prev) => [
+      ...prev,
       {
         name,
         avatar: name[0].toUpperCase(),
@@ -40,11 +73,15 @@ export default function ParticipantSetup({ onDone, onJoin }) {
     setInput("");
   };
 
-  const removeUser = (i) => {
-    setUsers(users.filter((_, idx) => idx !== i));
+  // ================= REMOVE USER =================
+  const removeUser = (index) => {
+    const removed = users[index];
+    usedColorsRef.current.delete(removed.color);
+
+    setUsers((prev) => prev.filter((_, i) => i !== index));
   };
 
-  // ✅ UPDATED CREATE
+  // ================= CREATE GROUP =================
   const handleCreate = () => {
     if (!groupName.trim()) {
       toast.warning("Nhập tên nhóm 😑");
@@ -62,11 +99,13 @@ export default function ParticipantSetup({ onDone, onJoin }) {
     });
   };
 
+  // ================= JOIN GROUP =================
   const handleJoin = (id = groupId) => {
     if (!id) return toast.warning("Nhập mã nhóm 😑");
     onJoin(id);
   };
 
+  // ================= LOAD GROUPS =================
   const loadGroups = async () => {
     try {
       setLoading(true);
@@ -83,18 +122,36 @@ export default function ParticipantSetup({ onDone, onJoin }) {
     if (mode === "list") loadGroups();
   }, [mode]);
 
+  // ================= RESET WHEN SWITCH TAB =================
+  useEffect(() => {
+    resetColors();
+    setUsers([]);
+    setGroupName("");
+    setInput("");
+    setGroupId("");
+  }, [mode]);
+
+  // ================= DELETE GROUP + EXPENSE FIX =================
   const handleDelete = async (id) => {
     if (!window.confirm("Xoá nhóm này?")) return;
-    await deleteGroup(id);
-    toast.success("Đã xoá 🗑️");
-    loadGroups();
+
+    try {
+      await deleteGroup(id);
+      await deleteExpenseByGroupId(id); // 🔥 FIX QUAN TRỌNG
+
+      setGroups((prev) => prev.filter((g) => g.id !== id));
+
+      toast.success("Xoá nhóm + dữ liệu thành công 🗑️");
+    } catch {
+      toast.error("Xoá thất bại ❌");
+    }
   };
 
+  // ================= TAB =================
   const Tab = ({ id, label }) => (
     <button
       onClick={() => setMode(id)}
-      className={`px-4 py-2 rounded-full text-sm transition
-      ${
+      className={`px-4 py-2 rounded-full text-sm transition ${
         mode === id
           ? "bg-cyan-500 text-black font-semibold"
           : "bg-white/10 text-gray-300"
@@ -104,15 +161,15 @@ export default function ParticipantSetup({ onDone, onJoin }) {
     </button>
   );
 
+  // ================= UI =================
   return (
     <div className="min-h-screen flex items-center justify-center bg-[#0b1220] text-white p-4">
-
       <motion.div
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
         className="w-[380px] bg-white/5 backdrop-blur-xl border border-white/10 rounded-3xl p-5 space-y-5"
       >
-
+        {/* TITLE */}
         <div className="text-center">
           <h2 className="text-xl font-bold">👥 Group Setup</h2>
         </div>
@@ -124,6 +181,7 @@ export default function ParticipantSetup({ onDone, onJoin }) {
           <Tab id="list" label="DS" />
         </div>
 
+        {/* CONTENT */}
         <AnimatePresence mode="wait">
           <motion.div
             key={mode}
@@ -132,19 +190,16 @@ export default function ParticipantSetup({ onDone, onJoin }) {
             exit={{ opacity: 0, x: -20 }}
             className="space-y-4"
           >
-
             {/* CREATE */}
             {mode === "create" && (
               <>
-                {/* group name */}
                 <input
                   value={groupName}
                   onChange={(e) => setGroupName(e.target.value)}
-                  placeholder="Tên nhóm (VD: Đi Đà Lạt...)"
+                  placeholder="Tên nhóm..."
                   className="w-full bg-white/10 px-4 py-3 rounded-2xl outline-none"
                 />
 
-                {/* input user */}
                 <div className="flex gap-2">
                   <input
                     value={input}
@@ -161,7 +216,6 @@ export default function ParticipantSetup({ onDone, onJoin }) {
                   </button>
                 </div>
 
-                {/* users */}
                 <div className="flex flex-wrap gap-2">
                   {users.map((u, i) => (
                     <div
@@ -193,7 +247,6 @@ export default function ParticipantSetup({ onDone, onJoin }) {
                   placeholder="Nhập mã nhóm..."
                   className="w-full bg-white/10 px-4 py-3 rounded-2xl outline-none"
                 />
-
                 <button
                   onClick={() => handleJoin()}
                   className="w-full py-3 rounded-2xl bg-green-500 text-black font-semibold"
@@ -206,9 +259,7 @@ export default function ParticipantSetup({ onDone, onJoin }) {
             {/* LIST */}
             {mode === "list" && (
               <div className="space-y-3 max-h-[260px] overflow-y-auto">
-                {loading && (
-                  <div className="text-gray-400">Loading...</div>
-                )}
+                {loading && <div className="text-gray-400">Loading...</div>}
 
                 {groups.map((g) => (
                   <div
@@ -216,9 +267,7 @@ export default function ParticipantSetup({ onDone, onJoin }) {
                     className="bg-white/10 p-3 rounded-2xl flex justify-between"
                   >
                     <div>
-                      <div className="font-semibold">
-                        {g.name || "No name"}
-                      </div>
+                      <div className="font-semibold">{g.name}</div>
                       <div className="text-xs text-gray-400">
                         {g.users?.length || 0} members
                       </div>
@@ -242,7 +291,6 @@ export default function ParticipantSetup({ onDone, onJoin }) {
                 ))}
               </div>
             )}
-
           </motion.div>
         </AnimatePresence>
       </motion.div>

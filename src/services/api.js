@@ -24,3 +24,16 @@ export const getAllGroups = () =>
 
 export const deleteGroup = (id) =>
   axios.delete(`${GROUP_API}/${id}`);
+export const deleteExpenseByGroupId = async (groupId) => {
+  const res = await axios.get(EXPENSE_API);
+
+  const items = res.data.filter(
+    (e) => String(e.groupId) === String(groupId)
+  );
+
+  return Promise.all(
+    items.map((item) =>
+      axios.delete(`${EXPENSE_API}/${item.id}`)
+    )
+  );
+};
