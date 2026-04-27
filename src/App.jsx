@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState, useCallback } from "react";
 import {
   getExpenses,
   deleteExpense,
@@ -20,6 +20,7 @@ function App() {
   const [groupId, setGroupId] = useState(null);
   const [groupName, setGroupName] = useState("");
   const [isSetup, setIsSetup] = useState(false);
+  const [loading, setLoading] = useState(false);
 
   // ================= INIT =================
   useEffect(() => {
@@ -27,20 +28,24 @@ function App() {
     if (id) handleJoinGroup(id);
   }, []);
 
-  // ================= LOAD DATA =================
-  const loadData = async (id) => {
+  // ================= LOAD EXPENSES (OPTIMIZED) =================
+  const loadData = useCallback(async (id) => {
     try {
+      setLoading(true);
       const res = await getExpenses();
 
-      const filtered = res.data.filter(
+      const data = res.data;
+      const filtered = data.filter(
         (e) => String(e.groupId) === String(id)
       );
 
       setExpenses(filtered);
     } catch {
       toast.error("Không tải được dữ liệu ❌");
+    } finally {
+      setLoading(false);
     }
-  };
+  }, []);
 
   // ================= CREATE GROUP =================
   const handleCreateGroup = async (data) => {
@@ -67,12 +72,13 @@ function App() {
   };
 
   // ================= JOIN GROUP =================
-  const handleJoinGroup = async (id) => {
+  const handleJoinGroup = useCallback(async (id) => {
     try {
       const res = await getGroup(id);
+      const group = res.data;
 
-      setUsers(res.data.users || []);
-      setGroupName(res.data.name || "");
+      setUsers(group.users || []);
+      setGroupName(group.name || "");
       setGroupId(id);
       setIsSetup(true);
 
@@ -81,34 +87,36 @@ function App() {
     } catch {
       toast.error("Không tìm thấy nhóm ❌");
     }
-  };
+  }, [loadData]);
 
-  // ================= DELETE =================
-  const handleDelete = async (id) => {
+  // ================= DELETE EXPENSE (OPTIMISTIC UI) =================
+  const handleDelete = useCallback(async (id) => {
+    // UI update trước (mượt hơn)
+    setExpenses((prev) => prev.filter((e) => e.id !== id));
+
     try {
       await deleteExpense(id);
-
-      setExpenses((prev) => prev.filter((e) => e.id !== id));
-
       toast.success("Đã xoá 🗑️");
     } catch {
       toast.error("Xoá thất bại ❌");
+      loadData(groupId); // rollback nếu lỗi
     }
-  };
+  }, [groupId, loadData]);
 
   // ================= RESET =================
-  const reset = () => {
+  const reset = useCallback(() => {
     setUsers([]);
     setExpenses([]);
     setGroupId(null);
     setGroupName("");
     setIsSetup(false);
-
     window.history.pushState({}, "", "/");
-  };
+  }, []);
 
-  // ================= DERIVED DATA =================
-  const balances = calculateBalances(expenses);
+  // ================= DERIVED STATE (MEMOIZED) =================
+  const balances = useMemo(() => {
+    return calculateBalances(expenses);
+  }, [expenses]);
 
   // ================= SETUP SCREEN =================
   if (!isSetup) {
@@ -118,6 +126,7 @@ function App() {
           onDone={handleCreateGroup}
           onJoin={handleJoinGroup}
         />
+        <ToastContainer position="top-center" autoClose={2000} />
       </div>
     );
   }
@@ -141,17 +150,16 @@ function App() {
             onResetUsers={reset}
           />
 
-          {/* GRID */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
-            {/* LEFT */}
+            {/* FORM */}
             <ExpenseForm
               users={users}
               groupId={groupId}
               reload={() => loadData(groupId)}
             />
 
-            {/* RIGHT */}
+            {/* LIST + SUMMARY */}
             <div className="lg:col-span-2 space-y-4">
 
               {/* EXPENSE LIST */}
@@ -168,6 +176,12 @@ function App() {
                   onDelete={handleDelete}
                   users={users}
                 />
+
+                {loading && (
+                  <div className="text-center text-gray-400 text-sm mt-3">
+                    Loading...
+                  </div>
+                )}
               </div>
 
               {/* SUMMARY */}

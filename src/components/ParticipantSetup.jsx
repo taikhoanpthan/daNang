@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { toast } from "react-toastify";
+import Swal from "sweetalert2";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   getAllGroups,
@@ -17,7 +18,7 @@ export default function ParticipantSetup({ onDone, onJoin }) {
   const [groups, setGroups] = useState([]);
   const [loading, setLoading] = useState(false);
 
-  // ================= COLOR SYSTEM (NO DUPLICATE GUARANTEE) =================
+  // ================= COLOR SYSTEM =================
   const colors = [
     "#6366f1",
     "#ec4899",
@@ -35,7 +36,6 @@ export default function ParticipantSetup({ onDone, onJoin }) {
 
   const getColor = () => {
     const used = usedColorsRef.current;
-
     const available = colors.filter((c) => !used.has(c));
 
     const color =
@@ -77,7 +77,6 @@ export default function ParticipantSetup({ onDone, onJoin }) {
   const removeUser = (index) => {
     const removed = users[index];
     usedColorsRef.current.delete(removed.color);
-
     setUsers((prev) => prev.filter((_, i) => i !== index));
   };
 
@@ -122,7 +121,6 @@ export default function ParticipantSetup({ onDone, onJoin }) {
     if (mode === "list") loadGroups();
   }, [mode]);
 
-  // ================= RESET WHEN SWITCH TAB =================
   useEffect(() => {
     resetColors();
     setUsers([]);
@@ -131,23 +129,52 @@ export default function ParticipantSetup({ onDone, onJoin }) {
     setGroupId("");
   }, [mode]);
 
-  // ================= DELETE GROUP + EXPENSE FIX =================
+  // ================= DELETE GROUP =================
   const handleDelete = async (id) => {
-    if (!window.confirm("Xoá nhóm này?")) return;
+    const result = await Swal.fire({
+      title: "Xoá nhóm này?",
+      text: "Toàn bộ chi tiêu liên quan cũng sẽ bị xoá!",
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonText: "Xoá",
+      cancelButtonText: "Huỷ",
+    });
+
+    if (!result.isConfirmed) return;
+
+    const toastSwal = Swal.mixin({
+      toast: true,
+      position: "top-end",
+      showConfirmButton: false,
+      timer: 1500,
+      timerProgressBar: true,
+    });
+
+    toastSwal.fire({
+      icon: "info",
+      title: "Đang xoá...",
+    });
 
     try {
-      await deleteGroup(id);
-      await deleteExpenseByGroupId(id); // 🔥 FIX QUAN TRỌNG
+      await Promise.all([
+        deleteGroup(id),
+        deleteExpenseByGroupId(id),
+      ]);
 
       setGroups((prev) => prev.filter((g) => g.id !== id));
 
-      toast.success("Xoá nhóm + dữ liệu thành công 🗑️");
+      toastSwal.fire({
+        icon: "success",
+        title: "Xoá thành công 🗑️",
+      });
     } catch {
-      toast.error("Xoá thất bại ❌");
+      toastSwal.fire({
+        icon: "error",
+        title: "Xoá thất bại ❌",
+      });
     }
   };
 
-  // ================= TAB =================
   const Tab = ({ id, label }) => (
     <button
       onClick={() => setMode(id)}
@@ -169,7 +196,6 @@ export default function ParticipantSetup({ onDone, onJoin }) {
         animate={{ opacity: 1, scale: 1 }}
         className="w-[380px] bg-white/5 backdrop-blur-xl border border-white/10 rounded-3xl p-5 space-y-5"
       >
-        {/* TITLE */}
         <div className="text-center">
           <h2 className="text-xl font-bold">👥 Group Setup</h2>
         </div>
@@ -181,7 +207,6 @@ export default function ParticipantSetup({ onDone, onJoin }) {
           <Tab id="list" label="DS" />
         </div>
 
-        {/* CONTENT */}
         <AnimatePresence mode="wait">
           <motion.div
             key={mode}
@@ -216,17 +241,31 @@ export default function ParticipantSetup({ onDone, onJoin }) {
                   </button>
                 </div>
 
-                <div className="flex flex-wrap gap-2">
-                  {users.map((u, i) => (
-                    <div
-                      key={i}
-                      className="flex items-center gap-2 px-3 py-1 rounded-full text-white"
-                      style={{ backgroundColor: u.color }}
-                    >
-                      {u.avatar} {u.name}
-                      <button onClick={() => removeUser(i)}>✕</button>
-                    </div>
-                  ))}
+                {/* ================= UX IMPROVED SECTION ================= */}
+                <div className="space-y-2">
+                  {/* GUIDE */}
+                  <div className="text-xs text-cyan-300 bg-cyan-500/10 px-3 py-2 rounded-xl border border-cyan-500/20">
+                    💡 Thêm tất cả thành viên sẽ tham gia chia tiền trong nhóm
+                  </div>
+
+                  {/* HINT */}
+                  <div className="text-[11px] text-gray-400">
+                    👉 Nhập tên rồi bấm + hoặc Enter để thêm thành viên
+                  </div>
+
+                  {/* USERS */}
+                  <div className="flex flex-wrap gap-2">
+                    {users.map((u, i) => (
+                      <div
+                        key={i}
+                        className="flex items-center gap-2 px-3 py-1 rounded-full text-white"
+                        style={{ backgroundColor: u.color }}
+                      >
+                        {u.avatar} {u.name}
+                        <button onClick={() => removeUser(i)}>✕</button>
+                      </div>
+                    ))}
+                  </div>
                 </div>
 
                 <button
