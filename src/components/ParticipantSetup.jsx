@@ -6,14 +6,11 @@ import { getAllGroups, deleteGroup } from "../services/api";
 export default function ParticipantSetup({ onDone, onJoin }) {
   const [mode, setMode] = useState("create");
 
-  // ===== CREATE =====
+  const [groupName, setGroupName] = useState(""); // ✅ NEW
   const [input, setInput] = useState("");
   const [users, setUsers] = useState([]);
-
-  // ===== JOIN =====
   const [groupId, setGroupId] = useState("");
 
-  // ===== GROUP LIST =====
   const [groups, setGroups] = useState([]);
   const [loading, setLoading] = useState(false);
 
@@ -22,7 +19,6 @@ export default function ParticipantSetup({ onDone, onJoin }) {
   const getColor = () =>
     colors[Math.floor(Math.random() * colors.length)];
 
-  // ===== ADD USER =====
   const addUser = () => {
     const name = input.trim();
     if (!name) return;
@@ -48,25 +44,29 @@ export default function ParticipantSetup({ onDone, onJoin }) {
     setUsers(users.filter((_, idx) => idx !== i));
   };
 
-  // ===== CREATE GROUP =====
+  // ✅ UPDATED CREATE
   const handleCreate = () => {
+    if (!groupName.trim()) {
+      toast.warning("Nhập tên nhóm 😑");
+      return;
+    }
+
     if (users.length < 2) {
       toast.warning("Ít nhất 2 người 😅");
       return;
     }
-    onDone(users);
+
+    onDone({
+      name: groupName,
+      users,
+    });
   };
 
-  // ===== JOIN =====
   const handleJoin = (id = groupId) => {
-    if (!id) {
-      toast.warning("Nhập mã nhóm 😑");
-      return;
-    }
+    if (!id) return toast.warning("Nhập mã nhóm 😑");
     onJoin(id);
   };
 
-  // ===== LOAD GROUPS =====
   const loadGroups = async () => {
     try {
       setLoading(true);
@@ -80,175 +80,172 @@ export default function ParticipantSetup({ onDone, onJoin }) {
   };
 
   useEffect(() => {
-    if (mode === "list") {
-      loadGroups();
-    }
+    if (mode === "list") loadGroups();
   }, [mode]);
 
-  // ===== DELETE =====
   const handleDelete = async (id) => {
     if (!window.confirm("Xoá nhóm này?")) return;
-
     await deleteGroup(id);
     toast.success("Đã xoá 🗑️");
     loadGroups();
   };
 
+  const Tab = ({ id, label }) => (
+    <button
+      onClick={() => setMode(id)}
+      className={`px-4 py-2 rounded-full text-sm transition
+      ${
+        mode === id
+          ? "bg-cyan-500 text-black font-semibold"
+          : "bg-white/10 text-gray-300"
+      }`}
+    >
+      {label}
+    </button>
+  );
+
   return (
-    <div className="bg-white p-6 rounded-3xl shadow-xl w-[350px] space-y-5">
-      <h2 className="text-center font-bold text-lg">
-        👥 Quản lý nhóm
-      </h2>
+    <div className="min-h-screen flex items-center justify-center bg-[#0b1220] text-white p-4">
 
-      {/* ===== TAB ===== */}
-      <div className="flex gap-2">
-        {[
-          { key: "create", label: "Tạo" },
-          { key: "join", label: "Join" },
-          { key: "list", label: "DS nhóm" },
-        ].map((t) => (
-          <button
-            key={t.key}
-            onClick={() => setMode(t.key)}
-            className={`flex-1 py-2 rounded-xl text-sm ${
-              mode === t.key
-                ? "bg-indigo-500 text-white"
-                : "bg-gray-200"
-            }`}
-          >
-            {t.label}
-          </button>
-        ))}
-      </div>
+      <motion.div
+        initial={{ opacity: 0, scale: 0.95 }}
+        animate={{ opacity: 1, scale: 1 }}
+        className="w-[380px] bg-white/5 backdrop-blur-xl border border-white/10 rounded-3xl p-5 space-y-5"
+      >
 
-      <AnimatePresence mode="wait">
-        {/* ===== CREATE ===== */}
-        {mode === "create" && (
+        <div className="text-center">
+          <h2 className="text-xl font-bold">👥 Group Setup</h2>
+        </div>
+
+        {/* TABS */}
+        <div className="flex gap-2 justify-center">
+          <Tab id="create" label="Tạo" />
+          <Tab id="join" label="Join" />
+          <Tab id="list" label="DS" />
+        </div>
+
+        <AnimatePresence mode="wait">
           <motion.div
-            key="create"
+            key={mode}
             initial={{ opacity: 0, x: 20 }}
             animate={{ opacity: 1, x: 0 }}
             exit={{ opacity: 0, x: -20 }}
             className="space-y-4"
           >
-            <div className="flex gap-2">
-              <input
-                value={input}
-                onChange={(e) => setInput(e.target.value)}
-                onKeyDown={(e) =>
-                  e.key === "Enter" && addUser()
-                }
-                placeholder="Nhập tên..."
-                className="flex-1 border px-3 py-2 rounded-xl"
-              />
 
-              <button
-                onClick={addUser}
-                className="bg-indigo-500 text-white px-4 rounded-xl"
-              >
-                +
-              </button>
-            </div>
+            {/* CREATE */}
+            {mode === "create" && (
+              <>
+                {/* group name */}
+                <input
+                  value={groupName}
+                  onChange={(e) => setGroupName(e.target.value)}
+                  placeholder="Tên nhóm (VD: Đi Đà Lạt...)"
+                  className="w-full bg-white/10 px-4 py-3 rounded-2xl outline-none"
+                />
 
-            <div className="flex flex-wrap gap-2">
-              {users.map((u, i) => (
-                <motion.div
-                  key={u.name}
-                  initial={{ scale: 0 }}
-                  animate={{ scale: 1 }}
-                  className="flex items-center gap-2 px-3 py-1 rounded-full text-white text-sm"
-                  style={{ backgroundColor: u.color }}
-                >
-                  {u.avatar} {u.name}
-                  <button onClick={() => removeUser(i)}>
-                    ✕
+                {/* input user */}
+                <div className="flex gap-2">
+                  <input
+                    value={input}
+                    onChange={(e) => setInput(e.target.value)}
+                    onKeyDown={(e) => e.key === "Enter" && addUser()}
+                    placeholder="Nhập tên..."
+                    className="flex-1 bg-white/10 px-4 py-3 rounded-2xl outline-none"
+                  />
+                  <button
+                    onClick={addUser}
+                    className="bg-cyan-500 text-black px-4 rounded-2xl font-bold"
+                  >
+                    +
                   </button>
-                </motion.div>
-              ))}
-            </div>
+                </div>
 
-            <button
-              onClick={handleCreate}
-              className="w-full bg-indigo-600 text-white py-2 rounded-xl"
-            >
-              Tạo nhóm 🚀
-            </button>
-          </motion.div>
-        )}
+                {/* users */}
+                <div className="flex flex-wrap gap-2">
+                  {users.map((u, i) => (
+                    <div
+                      key={i}
+                      className="flex items-center gap-2 px-3 py-1 rounded-full text-white"
+                      style={{ backgroundColor: u.color }}
+                    >
+                      {u.avatar} {u.name}
+                      <button onClick={() => removeUser(i)}>✕</button>
+                    </div>
+                  ))}
+                </div>
 
-        {/* ===== JOIN ===== */}
-        {mode === "join" && (
-          <motion.div
-            key="join"
-            initial={{ opacity: 0, x: 20 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: -20 }}
-            className="space-y-3"
-          >
-            <input
-              value={groupId}
-              onChange={(e) => setGroupId(e.target.value)}
-              placeholder="Nhập mã nhóm..."
-              className="w-full border px-3 py-2 rounded-xl"
-            />
+                <button
+                  onClick={handleCreate}
+                  className="w-full py-3 rounded-2xl bg-gradient-to-r from-cyan-500 to-blue-600 font-semibold"
+                >
+                  🚀 Tạo nhóm
+                </button>
+              </>
+            )}
 
-            <button
-              onClick={() => handleJoin()}
-              className="w-full bg-green-500 text-white py-2 rounded-xl"
-            >
-              Vào nhóm
-            </button>
-          </motion.div>
-        )}
+            {/* JOIN */}
+            {mode === "join" && (
+              <>
+                <input
+                  value={groupId}
+                  onChange={(e) => setGroupId(e.target.value)}
+                  placeholder="Nhập mã nhóm..."
+                  className="w-full bg-white/10 px-4 py-3 rounded-2xl outline-none"
+                />
 
-        {/* ===== LIST ===== */}
-        {mode === "list" && (
-          <motion.div
-            key="list"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            className="space-y-3 max-h-[250px] overflow-y-auto"
-          >
-            {loading && (
-              <div className="text-sm text-gray-400">
-                Đang load...
+                <button
+                  onClick={() => handleJoin()}
+                  className="w-full py-3 rounded-2xl bg-green-500 text-black font-semibold"
+                >
+                  Vào nhóm
+                </button>
+              </>
+            )}
+
+            {/* LIST */}
+            {mode === "list" && (
+              <div className="space-y-3 max-h-[260px] overflow-y-auto">
+                {loading && (
+                  <div className="text-gray-400">Loading...</div>
+                )}
+
+                {groups.map((g) => (
+                  <div
+                    key={g.id}
+                    className="bg-white/10 p-3 rounded-2xl flex justify-between"
+                  >
+                    <div>
+                      <div className="font-semibold">
+                        {g.name || "No name"}
+                      </div>
+                      <div className="text-xs text-gray-400">
+                        {g.users?.length || 0} members
+                      </div>
+                    </div>
+
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => handleJoin(g.id)}
+                        className="bg-blue-500 px-3 py-1 rounded-xl"
+                      >
+                        Vào
+                      </button>
+                      <button
+                        onClick={() => handleDelete(g.id)}
+                        className="bg-red-500 px-3 py-1 rounded-xl"
+                      >
+                        Xoá
+                      </button>
+                    </div>
+                  </div>
+                ))}
               </div>
             )}
 
-            {groups.map((g) => (
-              <div
-                key={g.id}
-                className="flex justify-between items-center bg-gray-50 p-3 rounded-xl"
-              >
-                <div>
-                  <div className="font-semibold">
-                    Group #{g.id}
-                  </div>
-                  <div className="text-xs text-gray-400">
-                    {g.users?.length || 0} người
-                  </div>
-                </div>
-
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => handleJoin(g.id)}
-                    className="bg-blue-500 text-white px-2 py-1 rounded text-sm"
-                  >
-                    Vào
-                  </button>
-
-                  <button
-                    onClick={() => handleDelete(g.id)}
-                    className="bg-red-500 text-white px-2 py-1 rounded text-sm"
-                  >
-                    Xoá
-                  </button>
-                </div>
-              </div>
-            ))}
           </motion.div>
-        )}
-      </AnimatePresence>
+        </AnimatePresence>
+      </motion.div>
     </div>
   );
 }

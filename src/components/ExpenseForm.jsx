@@ -10,8 +10,8 @@ export default function ExpenseForm({ users = [], reload, groupId }) {
   const [payer, setPayer] = useState("");
   const [participants, setParticipants] = useState([]);
   const [note, setNote] = useState("");
+  const [loading, setLoading] = useState(false);
 
-  // 👉 toggle user
   const toggleUser = (name) => {
     setParticipants((prev) =>
       prev.includes(name)
@@ -21,33 +21,20 @@ export default function ExpenseForm({ users = [], reload, groupId }) {
   };
 
   const handleAdd = async () => {
-    // ❗ validate
-    if (!amount || Number(amount) <= 0) {
-      toast.error("Nhập số tiền hợp lệ ❗");
-      return;
-    }
+    if (!amount || Number(amount) <= 0)
+      return toast.error("Nhập số tiền hợp lệ ❗");
 
-    if (!payer) {
-      toast.error("Chọn người trả ❗");
-      return;
-    }
+    if (!payer) return toast.error("Chọn người trả ❗");
+    if (participants.length === 0)
+      return toast.error("Chọn người tham gia ❗");
 
-    if (participants.length === 0) {
-      toast.error("Chọn người tham gia ❗");
-      return;
-    }
-
-    if (!groupId) {
-      toast.error("Thiếu groupId ❌");
-      return;
-    }
-
-    // 👉 đảm bảo payer luôn có trong participants
     const finalParticipants = participants.includes(payer)
       ? participants
       : [...participants, payer];
 
     try {
+      setLoading(true);
+
       await addExpense({
         amount: Number(amount),
         payer,
@@ -57,46 +44,57 @@ export default function ExpenseForm({ users = [], reload, groupId }) {
         groupId: String(groupId),
       });
 
-      toast.success("✅ Đã thêm!");
+      toast.success("Đã thêm ✨");
 
-      // 👉 reset sạch
       setAmount("");
       setDisplayAmount("");
       setPayer("");
-      setParticipants([]);
+      setParticipants("");
       setNote("");
 
       reload();
-    } catch (err) {
-      console.log(err);
+    } catch {
       toast.error("Thêm thất bại ❌");
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 20 }}
+      initial={{ opacity: 0, y: 15 }}
       animate={{ opacity: 1, y: 0 }}
-      className="bg-white p-4 rounded-2xl shadow space-y-3"
+      className="bg-white/10 backdrop-blur-xl border border-white/10
+      rounded-3xl p-5 shadow-xl space-y-5"
     >
+      {/* TITLE */}
+      <div>
+        <h2 className="text-white font-semibold text-lg">
+          💸 Thêm chi tiêu
+        </h2>
+        <p className="text-xs text-gray-400">
+          Nhập thông tin khoản chi mới
+        </p>
+      </div>
+
       {/* NOTE */}
-      <div className="flex items-center border p-2 rounded-lg">
-        <FileText size={18} className="mr-2 text-gray-500" />
+      <div className="flex items-center gap-3 bg-white/5 p-3 rounded-2xl border border-white/10">
+        <FileText size={18} className="text-gray-400" />
         <input
           value={note}
           placeholder="Chi cho cái gì..."
-          className="w-full outline-none"
+          className="w-full outline-none bg-transparent text-white placeholder-gray-500"
           onChange={(e) => setNote(e.target.value)}
         />
       </div>
 
       {/* AMOUNT */}
-      <div className="flex items-center border p-2 rounded-lg">
-        <Wallet size={18} className="mr-2 text-green-500" />
+      <div className="flex items-center gap-3 bg-white/5 p-3 rounded-2xl border border-white/10">
+        <Wallet size={18} className="text-green-400" />
         <input
           value={displayAmount}
           placeholder="Nhập số tiền"
-          className="w-full outline-none"
+          className="w-full outline-none bg-transparent text-white placeholder-gray-500"
           inputMode="numeric"
           onChange={(e) => {
             const raw = e.target.value.replace(/\D/g, "");
@@ -110,55 +108,60 @@ export default function ExpenseForm({ users = [], reload, groupId }) {
       </div>
 
       {/* PAYER */}
-      <div className="flex items-center border p-2 rounded-lg">
-        <User size={18} className="mr-2 text-blue-500" />
+      <div className="flex items-center gap-3 bg-white/5 p-3 rounded-2xl border border-white/10">
+        <User size={18} className="text-blue-400" />
         <select
           value={payer}
-          className="w-full outline-none"
+          className="w-full outline-none bg-transparent text-white"
           onChange={(e) => setPayer(e.target.value)}
         >
-          <option value="">Người trả</option>
+          <option value="" className="text-black">
+            Người trả
+          </option>
           {users.map((u) => (
-            <option key={u.name} value={u.name}>
+            <option key={u.name} value={u.name} className="text-black">
               {u.name}
             </option>
           ))}
         </select>
       </div>
 
-      {/* PARTICIPANTS */}
-      <div className="flex gap-2 flex-wrap">
+      {/* USERS */}
+      <div className="flex flex-wrap gap-2">
         {users.map((u) => {
           const active = participants.includes(u.name);
 
           return (
             <button
-              type="button"
               key={u.name}
               onClick={() => toggleUser(u.name)}
-              className={`flex items-center gap-1 px-3 py-1 rounded-full text-sm transition
-                ${active ? "text-white scale-105" : "bg-gray-200"}
-              `}
+              className={`px-3 py-1 rounded-full text-sm transition-all duration-200
+              ${
+                active
+                  ? "text-white shadow-lg scale-105"
+                  : "bg-white/10 text-gray-300 hover:bg-white/20"
+              }`}
               style={{
                 backgroundColor: active ? u.color : undefined,
               }}
             >
-              <div className="w-5 h-5 rounded-full bg-white text-black flex items-center justify-center text-xs font-bold">
-                {u.avatar}
-              </div>
-
+              <span className="mr-1">{u.avatar}</span>
               {u.name}
             </button>
           );
         })}
       </div>
 
-      {/* SUBMIT */}
+      {/* BUTTON */}
       <button
+        disabled={loading}
         onClick={handleAdd}
-        className="w-full bg-blue-600 text-white p-2 rounded-lg hover:scale-105 active:scale-95 transition"
+        className="w-full py-3 rounded-2xl font-semibold text-white
+        bg-gradient-to-r from-cyan-500 to-blue-600
+        hover:scale-[1.02] active:scale-95 transition
+        shadow-lg shadow-cyan-500/20 disabled:opacity-40"
       >
-        ➕ Thêm khoản chi
+        {loading ? "Đang thêm..." : "➕ Thêm khoản chi"}
       </button>
     </motion.div>
   );

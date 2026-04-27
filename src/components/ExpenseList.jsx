@@ -1,4 +1,4 @@
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { formatVND } from "../utils/format";
 import { Trash2 } from "lucide-react";
 import { simplifyDebts } from "../utils/calc";
@@ -14,79 +14,112 @@ export default function ExpenseList({
 
   if (expenses.length === 0) {
     return (
-      <div className="text-center text-gray-400 py-6">
-        Chưa có khoản chi nào 😴
+      <div className="text-center text-gray-400 py-10">
+        😴 Chưa có giao dịch nào
       </div>
     );
   }
 
   return (
-    <div className="space-y-3">
-      {/* ===== LIST ===== */}
-      {expenses.map((e) => {
-        const participants = e.participants || [];
+    <div className="space-y-5">
 
-        return (
-          <motion.div
-            key={e.id}
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="bg-white p-4 rounded-2xl shadow-sm border flex justify-between items-center"
-          >
-            {/* LEFT */}
-            <div className="flex-1">
-              <div className="font-bold text-green-600 text-lg">
-                {formatVND(e.amount)} đ
-              </div>
+      {/* ================= EXPENSE LIST ================= */}
+      <div className="space-y-3">
 
-              <div className="text-sm text-gray-700">
-                {e.note || "Không có mô tả"}
-              </div>
+        <AnimatePresence>
+          {expenses.map((e) => {
+            const participants = e.participants || [];
 
-              <div className="text-xs text-gray-400">
-                {e.date
-                  ? new Date(e.date).toLocaleString("vi-VN")
-                  : ""}
-              </div>
+            return (
+              <motion.div
+                key={e.id}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, x: -20 }}
+                className="group relative bg-white/10 backdrop-blur-xl
+                border border-white/10 rounded-3xl p-4"
+              >
 
-              <div className="flex items-center gap-2 mt-2 flex-wrap">
-                {participants.map((p) => {
-                  const user = getUser(p);
-                  return (
-                    <div
-                      key={p}
-                      className="w-7 h-7 rounded-full text-white text-xs flex items-center justify-center"
-                      style={{
-                        backgroundColor: user?.color || "#9ca3af",
-                      }}
-                    >
-                      {user?.avatar || "?"}
+                {/* GRID FIX LAYOUT */}
+                <div className="grid grid-cols-[1fr_auto] gap-4 items-center">
+
+                  {/* LEFT CONTENT */}
+                  <div className="min-w-0">
+
+                    {/* AMOUNT */}
+                    <div className="text-emerald-400 font-bold text-lg">
+                      {formatVND(e.amount)} đ
                     </div>
-                  );
-                })}
-              </div>
 
-              <div className="text-xs text-gray-500 mt-1">
-                {e.payer} trả • {participants.join(", ")}
-              </div>
-            </div>
+                    {/* NOTE */}
+                    <div className="text-sm text-gray-300 truncate">
+                      {e.note || "Không có mô tả"}
+                    </div>
 
-            {/* DELETE */}
-            <button
-              onClick={() => onDelete(e.id)}
-              className="text-red-500 hover:scale-110 transition"
-            >
-              <Trash2 size={18} />
-            </button>
-          </motion.div>
-        );
-      })}
+                    {/* DATE */}
+                    <div className="text-xs text-gray-500 mt-1">
+                      {e.date
+                        ? new Date(e.date).toLocaleString("vi-VN")
+                        : ""}
+                    </div>
 
-      {/* ===== SUMMARY ===== */}
+                    {/* AVATARS */}
+                    <div className="flex items-center mt-3">
+                      <div className="flex -space-x-2">
+                        {participants.slice(0, 4).map((p) => {
+                          const user = getUser(p);
+
+                          return (
+                            <div
+                              key={p}
+                              className="w-7 h-7 rounded-full text-white text-xs
+                              flex items-center justify-center border-2 border-[#0b1220]"
+                              style={{
+                                backgroundColor: user?.color || "#6b7280",
+                              }}
+                            >
+                              {user?.avatar || "?"}
+                            </div>
+                          );
+                        })}
+                      </div>
+
+                      <div className="ml-3 text-xs text-gray-400 truncate">
+                        {e.payer} trả • {participants.length} người
+                      </div>
+                    </div>
+
+                  </div>
+
+                  {/* DELETE BUTTON */}
+                  <button
+                    onClick={() => onDelete(e.id)}
+                    className="opacity-0 group-hover:opacity-100
+                    transition text-red-400 hover:text-red-300
+                    hover:scale-110"
+                  >
+                    <Trash2 size={18} />
+                  </button>
+
+                </div>
+
+                {/* LEFT ACCENT LINE */}
+                <div className="absolute left-0 top-0 bottom-0 w-[3px]
+                bg-gradient-to-b from-cyan-500/60 to-transparent rounded-l-3xl" />
+
+              </motion.div>
+            );
+          })}
+        </AnimatePresence>
+      </div>
+
+      {/* ================= SUMMARY ================= */}
       {finalDebts.length > 0 && (
-        <div className="bg-gray-50 p-4 rounded-2xl border">
-          <div className="font-semibold mb-2 text-gray-700">
-            💸 Tổng kết
+        <div className="bg-white/10 backdrop-blur-xl
+        border border-white/10 rounded-3xl p-4 space-y-3">
+
+          <div className="text-sm text-gray-300 font-semibold">
+            💸 Settlement Summary
           </div>
 
           {finalDebts.map((t, i) => {
@@ -96,38 +129,45 @@ export default function ExpenseList({
             return (
               <div
                 key={i}
-                className="flex justify-between items-center text-sm bg-white p-2 rounded-lg mb-2"
+                className="grid grid-cols-[80px_1fr_120px]
+                items-center gap-2 bg-white/5 p-3 rounded-2xl"
               >
-                <div className="flex items-center gap-2">
+
+                {/* AVATARS */}
+                <div className="flex items-center gap-1">
                   <div
-                    className="w-6 h-6 rounded-full text-white text-xs flex items-center justify-center"
+                    className="w-7 h-7 rounded-full flex items-center justify-center text-xs text-white"
                     style={{ backgroundColor: from?.color }}
                   >
                     {from?.avatar}
                   </div>
 
-                  <span>→</span>
+                  <span className="text-gray-400">→</span>
 
                   <div
-                    className="w-6 h-6 rounded-full text-white text-xs flex items-center justify-center"
+                    className="w-7 h-7 rounded-full flex items-center justify-center text-xs text-white"
                     style={{ backgroundColor: to?.color }}
                   >
                     {to?.avatar}
                   </div>
                 </div>
 
-                <div className="text-gray-600">
-                  {t.from} trả {t.to}
+                {/* TEXT */}
+                <div className="text-sm text-gray-300 truncate">
+                  {t.from} → {t.to}
                 </div>
 
-                <div className="font-bold text-red-500">
+                {/* AMOUNT (NO LỆCH 100%) */}
+                <div className="text-red-400 font-bold text-right whitespace-nowrap">
                   {formatVND(t.amount)} đ
                 </div>
+
               </div>
             );
           })}
         </div>
       )}
+
     </div>
   );
 }
