@@ -4,14 +4,14 @@ import { motion } from "framer-motion";
 import { Wallet, User, FileText } from "lucide-react";
 import { toast } from "react-toastify";
 
-export default function ExpenseForm({ users = [], reload }) {
+export default function ExpenseForm({ users = [], reload, groupId }) {
   const [amount, setAmount] = useState("");
   const [displayAmount, setDisplayAmount] = useState("");
   const [payer, setPayer] = useState("");
   const [participants, setParticipants] = useState([]);
   const [note, setNote] = useState("");
 
-  // 👉 FIX: dùng name thay vì object
+  // 👉 toggle user
   const toggleUser = (name) => {
     setParticipants((prev) =>
       prev.includes(name)
@@ -21,32 +21,56 @@ export default function ExpenseForm({ users = [], reload }) {
   };
 
   const handleAdd = async () => {
-    if (!amount || !payer || participants.length === 0) {
-      toast.error("❗ Nhập đầy đủ thông tin");
+    // ❗ validate
+    if (!amount || Number(amount) <= 0) {
+      toast.error("Nhập số tiền hợp lệ ❗");
       return;
     }
 
+    if (!payer) {
+      toast.error("Chọn người trả ❗");
+      return;
+    }
+
+    if (participants.length === 0) {
+      toast.error("Chọn người tham gia ❗");
+      return;
+    }
+
+    if (!groupId) {
+      toast.error("Thiếu groupId ❌");
+      return;
+    }
+
+    // 👉 đảm bảo payer luôn có trong participants
     const finalParticipants = participants.includes(payer)
       ? participants
       : [...participants, payer];
 
-    await addExpense({
-      amount: Number(amount),
-      payer,
-      participants: finalParticipants,
-      note,
-      date: new Date().toISOString(),
-    });
+    try {
+      await addExpense({
+        amount: Number(amount),
+        payer,
+        participants: finalParticipants,
+        note: note.trim() || "Không rõ",
+        date: new Date().toISOString(),
+        groupId: String(groupId),
+      });
 
-    toast.success("✅ Đã thêm!");
+      toast.success("✅ Đã thêm!");
 
-    setAmount("");
-    setDisplayAmount("");
-    setPayer("");
-    setParticipants([]);
-    setNote("");
+      // 👉 reset sạch
+      setAmount("");
+      setDisplayAmount("");
+      setPayer("");
+      setParticipants([]);
+      setNote("");
 
-    reload();
+      reload();
+    } catch (err) {
+      console.log(err);
+      toast.error("Thêm thất bại ❌");
+    }
   };
 
   return (
@@ -73,19 +97,19 @@ export default function ExpenseForm({ users = [], reload }) {
           value={displayAmount}
           placeholder="Nhập số tiền"
           className="w-full outline-none"
+          inputMode="numeric"
           onChange={(e) => {
             const raw = e.target.value.replace(/\D/g, "");
             setAmount(raw);
 
-            const formatted = raw
-              ? Number(raw).toLocaleString("vi-VN")
-              : "";
-            setDisplayAmount(formatted);
+            setDisplayAmount(
+              raw ? Number(raw).toLocaleString("vi-VN") : ""
+            );
           }}
         />
       </div>
 
-      {/* 🔥 PAYER (FIX KEY + VALUE) */}
+      {/* PAYER */}
       <div className="flex items-center border p-2 rounded-lg">
         <User size={18} className="mr-2 text-blue-500" />
         <select
@@ -102,13 +126,14 @@ export default function ExpenseForm({ users = [], reload }) {
         </select>
       </div>
 
-      {/* 🔥 PARTICIPANTS (có avatar + màu) */}
+      {/* PARTICIPANTS */}
       <div className="flex gap-2 flex-wrap">
         {users.map((u) => {
           const active = participants.includes(u.name);
 
           return (
             <button
+              type="button"
               key={u.name}
               onClick={() => toggleUser(u.name)}
               className={`flex items-center gap-1 px-3 py-1 rounded-full text-sm transition
@@ -118,7 +143,6 @@ export default function ExpenseForm({ users = [], reload }) {
                 backgroundColor: active ? u.color : undefined,
               }}
             >
-              {/* avatar */}
               <div className="w-5 h-5 rounded-full bg-white text-black flex items-center justify-center text-xs font-bold">
                 {u.avatar}
               </div>

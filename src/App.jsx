@@ -1,125 +1,223 @@
 import { useEffect, useState } from "react";
-import { getExpenses, deleteExpense } from "./services/api";
+import {
+  getExpenses,
+  deleteExpense,
+  getGroup,
+  createGroup,
+} from "./services/api";
+
 import { calculateBalances } from "./utils/calc";
 import { ToastContainer, toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
+
 import ParticipantSetup from "./components/ParticipantSetup";
 import FadeIn from "./components/FadeIn";
-
 import Header from "./components/Header";
 import ExpenseForm from "./components/ExpenseForm";
 import ExpenseList from "./components/ExpenseList";
 import Summary from "./components/Summary";
 import Transactions from "./components/Transactions";
 import Total from "./components/Total";
+import GroupManager from "./components/GroupManager";
 
 function App() {
   const [expenses, setExpenses] = useState([]);
   const [balances, setBalances] = useState({});
-
   const [users, setUsers] = useState([]);
   const [isSetup, setIsSetup] = useState(false);
+  const [groupId, setGroupId] = useState(null);
 
-  // LOAD USERS (chạy 1 lần)
+  const [mode, setMode] = useState("home");
+
+  // ===== LẤY groupId từ URL =====
   useEffect(() => {
-    const saved = localStorage.getItem("users");
+    const id = new URLSearchParams(window.location.search).get("groupId");
 
-    if (saved) {
-      const parsed = JSON.parse(saved);
-      setUsers(parsed);
-      setIsSetup(true);
+    if (id) {
+      setGroupId(id);
+      loadUsers(id);
     }
   }, []);
 
-  // LOAD DATA (chỉ khi đã setup)
-  useEffect(() => {
-    if (isSetup) {
-      loadData();
+  // ===== LOAD USERS =====
+  const loadUsers = async (id) => {
+    try {
+      const res = await getGroup(id);
+      setUsers(res.data.users || []);
+      setIsSetup(true);
+    } catch {
+      toast.error("Không tìm thấy nhóm ❌");
+      setIsSetup(false);
     }
-  }, [isSetup]);
+  };
 
+  // ===== LOAD EXPENSE THEO GROUP =====
   const loadData = async () => {
     try {
       const res = await getExpenses();
-      updateAll(res.data);
-    } catch (err) {
+
+      const filtered = res.data.filter(
+        (e) => String(e.groupId) === String(groupId),
+      );
+
+      setExpenses(filtered);
+      setBalances(calculateBalances(filtered));
+    } catch {
       toast.error("Không tải được dữ liệu ❌");
     }
   };
 
-  // UPDATE STATE
-  const updateAll = (data) => {
-    setExpenses(data);
-    const balance = calculateBalances(data);
-    setBalances(balance);
-  };
+  useEffect(() => {
+    if (isSetup && groupId) {
+      loadData();
+    }
+  }, [isSetup, groupId]);
 
-  // DELETE
+  // ===== DELETE =====
   const handleDelete = async (id) => {
-    const newExpenses = expenses.filter((e) => e.id !== id);
-    updateAll(newExpenses);
+    const newData = expenses.filter((e) => e.id !== id);
+    setExpenses(newData);
+    setBalances(calculateBalances(newData));
 
     try {
       await deleteExpense(id);
       toast.success("Đã xoá 🗑️");
-    } catch (err) {
+    } catch {
       toast.error("Xoá thất bại ❌");
       loadData();
     }
   };
 
-  // ❗ CHẶN UI nếu chưa setup
-  if (!isSetup) {
+  // ===== CREATE GROUP =====
+  const handleCreateGroup = async (list) => {
+    try {
+      const res = await createGroup({ users: list });
+      const newId = res.data.id;
+
+      setUsers(list);
+      setGroupId(newId);
+      setIsSetup(true);
+
+      window.history.pushState({}, "", `?groupId=${newId}`);
+
+      toast.success("Tạo nhóm thành công 🎉");
+    } catch {
+      toast.error("Tạo nhóm thất bại ❌");
+    }
+  };
+
+  // ===== JOIN GROUP =====
+  const handleJoinGroup = async (id) => {
+    try {
+      const res = await getGroup(id);
+
+      setUsers(res.data.users || []);
+      setGroupId(id);
+      setIsSetup(true);
+
+      window.history.pushState({}, "", `?groupId=${id}`);
+    } catch {
+      toast.error("Nhóm không tồn tại ❌");
+    }
+  };
+
+  // ===== RESET =====
+  const handleResetUsers = () => {
+    setUsers([]);
+    setExpenses([]);
+    setBalances({});
+    setIsSetup(false);
+    setGroupId(null);
+    setMode("home");
+
+    window.history.pushState({}, "", `/`);
+  };
+
+  // ===== CHƯA SETUP =====
+  if (!isSetup || users.length === 0) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-100">
-        <ParticipantSetup
-          onDone={(list) => {
-            setUsers(list);
-            setIsSetup(true);
-          }}
-        />
+        {mode === "home" && (
+          <div className="bg-white p-6 rounded-2xl shadow space-y-4 text-center w-[320px]">
+            <h2 className="text-lg font-bold">Chọn chế độ</h2>
+
+            <button
+              onClick={() => setMode("create")}
+              className="w-full bg-indigo-500 text-white py-2 rounded-lg"
+            >
+              ➕ Tạo nhóm
+            </button>
+
+            <button
+              onClick={() => setMode("join")}
+              className="w-full bg-gray-200 py-2 rounded-lg"
+            >
+              🔑 Tham gia nhóm
+            </button>
+          </div>
+        )}
+
+        {mode === "create" && (
+          <ParticipantSetup
+            onDone={handleCreateGroup}
+            onJoin={handleJoinGroup}
+          />
+        )}
       </div>
     );
   }
-  const handleResetUsers = () => {
-    if (window.confirm("Bạn muốn tạo nhóm mới? Dữ liệu hiện tại sẽ mất ⚠️")) {
-      localStorage.removeItem("users");
-      setUsers([]);
-      setIsSetup(false);
-    }
-  };
-  // UI CHÍNH
+
+  // ===== UI CHÍNH =====
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50">
       <div className="max-w-md mx-auto p-4 space-y-4">
-        <FadeIn>
-          <Header onResetUsers={handleResetUsers} />
-        </FadeIn>
+        <Header onResetUsers={handleResetUsers} groupId={groupId} />
 
-        <FadeIn delay={0.1}>
-          <ExpenseForm users={users} reload={loadData} />
-        </FadeIn>
+        <ExpenseForm
+          users={users}
+          reload={loadData}
+          groupId={groupId} // 🔥 QUAN TRỌNG
+        />
+        
+        <Transactions expenses={expenses} />
 
-        <FadeIn delay={0.4}>
-          <Transactions expenses={expenses} />
-        </FadeIn>
+        <ExpenseList expenses={expenses} onDelete={handleDelete} />
 
-        <FadeIn delay={0.2}>
-          <ExpenseList expenses={expenses} onDelete={handleDelete}  users={users}/>
-        </FadeIn>
+        <Summary balances={balances} />
 
-        <FadeIn delay={0.3}>
-          <Summary balances={balances} />
-        </FadeIn>
+        <Total expenses={expenses} />
 
-        <FadeIn delay={0.5}>
-          <Total expenses={expenses} />
-        </FadeIn>
+        <GroupManager />
 
-        <ToastContainer position="top-center" autoClose={2000} limit={2} />
+        <ToastContainer position="top-center" autoClose={2000} />
       </div>
     </div>
   );
 }
 
 export default App;
+
+// ===== JOIN GROUP =====
+function JoinGroup({ onJoin }) {
+  const [id, setId] = useState("");
+
+  return (
+    <div className="bg-white p-6 rounded-2xl shadow space-y-4 w-[320px]">
+      <h2 className="text-lg font-bold text-center">Nhập mã nhóm</h2>
+
+      <input
+        value={id}
+        onChange={(e) => setId(e.target.value)}
+        placeholder="VD: 3"
+        className="w-full border p-2 rounded-lg"
+      />
+
+      <button
+        onClick={() => onJoin(id)}
+        className="w-full bg-indigo-500 text-white py-2 rounded-lg"
+      >
+        Tham gia
+      </button>
+    </div>
+  );
+}
