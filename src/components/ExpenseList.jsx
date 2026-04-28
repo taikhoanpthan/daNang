@@ -1,6 +1,7 @@
+import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { formatVND } from "../utils/format";
-import { Trash2 } from "lucide-react";
+import { Trash2, ChevronDown, ChevronUp } from "lucide-react";
 import { simplifyDebts } from "../utils/calc";
 
 export default function ExpenseList({
@@ -8,6 +9,8 @@ export default function ExpenseList({
   onDelete,
   users = [],
 }) {
+  const [showAll, setShowAll] = useState(false);
+
   const finalDebts = simplifyDebts(expenses);
 
   const getUser = (name) => users.find((u) => u.name === name);
@@ -20,58 +23,59 @@ export default function ExpenseList({
     );
   }
 
+  const visibleExpenses = showAll
+    ? expenses
+    : expenses.slice(0, 3);
+
   return (
     <div className="space-y-5">
 
       {/* ================= EXPENSE LIST ================= */}
       <div className="space-y-3">
 
-        <AnimatePresence>
-          {expenses.map((e) => {
+        <AnimatePresence mode="popLayout">
+          {visibleExpenses.map((e, index) => {
             const participants = e.participants || [];
 
             return (
               <motion.div
-                key={e.id}
+                key={e.id || index}   // 👈 FIX AN TOÀN
+                layout
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, x: -20 }}
+                transition={{ duration: 0.25 }}
                 className="group relative bg-white/10 backdrop-blur-xl
                 border border-white/10 rounded-3xl p-4"
               >
 
-                {/* GRID FIX LAYOUT */}
                 <div className="grid grid-cols-[1fr_auto] gap-4 items-center">
 
-                  {/* LEFT CONTENT */}
+                  {/* LEFT */}
                   <div className="min-w-0">
 
-                    {/* AMOUNT */}
                     <div className="text-emerald-400 font-bold text-lg">
                       {formatVND(e.amount)} đ
                     </div>
 
-                    {/* NOTE */}
                     <div className="text-sm text-gray-300 truncate">
                       {e.note || "Không có mô tả"}
                     </div>
 
-                    {/* DATE */}
                     <div className="text-xs text-gray-500 mt-1">
                       {e.date
                         ? new Date(e.date).toLocaleString("vi-VN")
                         : ""}
                     </div>
 
-                    {/* AVATARS */}
                     <div className="flex items-center mt-3">
                       <div className="flex -space-x-2">
-                        {participants.slice(0, 4).map((p) => {
+                        {participants.slice(0, 4).map((p, i) => {
                           const user = getUser(p);
 
                           return (
                             <div
-                              key={p}
+                              key={p + i}
                               className="w-7 h-7 rounded-full text-white text-xs
                               flex items-center justify-center border-2 border-[#0b1220]"
                               style={{
@@ -91,7 +95,7 @@ export default function ExpenseList({
 
                   </div>
 
-                  {/* DELETE BUTTON */}
+                  {/* DELETE */}
                   <button
                     onClick={() => onDelete(e.id)}
                     className="opacity-0 group-hover:opacity-100
@@ -103,15 +107,35 @@ export default function ExpenseList({
 
                 </div>
 
-                {/* LEFT ACCENT LINE */}
                 <div className="absolute left-0 top-0 bottom-0 w-[3px]
                 bg-gradient-to-b from-cyan-500/60 to-transparent rounded-l-3xl" />
-
               </motion.div>
             );
           })}
         </AnimatePresence>
       </div>
+
+      {/* ================= SHOW MORE ================= */}
+      {expenses.length > 3 && (
+        <motion.button
+          layout
+          onClick={() => setShowAll((p) => !p)}
+          className="w-full flex items-center justify-center gap-2
+          text-sm text-gray-300 bg-white/5 hover:bg-white/10
+          py-2 rounded-2xl transition"
+          whileTap={{ scale: 0.98 }}
+        >
+          {showAll ? (
+            <>
+              Thu gọn <ChevronUp size={16} />
+            </>
+          ) : (
+            <>
+              Xem thêm ({expenses.length - 3}) <ChevronDown size={16} />
+            </>
+          )}
+        </motion.button>
+      )}
 
       {/* ================= SUMMARY ================= */}
       {finalDebts.length > 0 && (
@@ -133,7 +157,6 @@ export default function ExpenseList({
                 items-center gap-2 bg-white/5 p-3 rounded-2xl"
               >
 
-                {/* AVATARS */}
                 <div className="flex items-center gap-1">
                   <div
                     className="w-7 h-7 rounded-full flex items-center justify-center text-xs text-white"
@@ -152,12 +175,10 @@ export default function ExpenseList({
                   </div>
                 </div>
 
-                {/* TEXT */}
                 <div className="text-sm text-gray-300 truncate">
                   {t.from} → {t.to}
                 </div>
 
-                {/* AMOUNT (NO LỆCH 100%) */}
                 <div className="text-red-400 font-bold text-right whitespace-nowrap">
                   {formatVND(t.amount)} đ
                 </div>
@@ -167,7 +188,6 @@ export default function ExpenseList({
           })}
         </div>
       )}
-
     </div>
   );
 }

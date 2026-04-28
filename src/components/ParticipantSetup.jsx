@@ -2,23 +2,25 @@ import { useEffect, useRef, useState } from "react";
 import { toast } from "react-toastify";
 import Swal from "sweetalert2";
 import { motion, AnimatePresence } from "framer-motion";
+
 import {
   getAllGroups,
   deleteGroup,
   deleteExpenseByGroupId,
 } from "../services/api";
 
-export default function ParticipantSetup({ onDone, onJoin }) {
+export default function ParticipantSetup({ onDone }) {
   const [mode, setMode] = useState("create");
 
   const [groupName, setGroupName] = useState("");
   const [input, setInput] = useState("");
   const [users, setUsers] = useState([]);
-  const [groupId, setGroupId] = useState("");
+
   const [groups, setGroups] = useState([]);
   const [loading, setLoading] = useState(false);
 
-  // ================= COLOR SYSTEM =================
+  const usedColorsRef = useRef(new Set());
+
   const colors = [
     "#6366f1",
     "#ec4899",
@@ -28,15 +30,12 @@ export default function ParticipantSetup({ onDone, onJoin }) {
     "#14b8a6",
     "#a855f7",
     "#22c55e",
-    "#3b82f6",
-    "#eab308",
   ];
 
-  const usedColorsRef = useRef(new Set());
-
+  // ================= COLORS =================
   const getColor = () => {
     const used = usedColorsRef.current;
-    const available = colors.filter((c) => !used.has(c));
+    const available = colors.filter(c => !used.has(c));
 
     const color =
       available.length > 0
@@ -51,65 +50,12 @@ export default function ParticipantSetup({ onDone, onJoin }) {
     usedColorsRef.current = new Set();
   };
 
-  // ================= ADD USER =================
-  const addUser = () => {
-    const name = input.trim();
-    if (!name) return;
-
-    if (users.some((u) => u.name === name)) {
-      toast.warning("Tên trùng 😑");
-      return;
-    }
-
-    setUsers((prev) => [
-      ...prev,
-      {
-        name,
-        avatar: name[0].toUpperCase(),
-        color: getColor(),
-      },
-    ]);
-
-    setInput("");
-  };
-
-  // ================= REMOVE USER =================
-  const removeUser = (index) => {
-    const removed = users[index];
-    usedColorsRef.current.delete(removed.color);
-    setUsers((prev) => prev.filter((_, i) => i !== index));
-  };
-
-  // ================= CREATE GROUP =================
-  const handleCreate = () => {
-    if (!groupName.trim()) {
-      toast.warning("Nhập tên nhóm 😑");
-      return;
-    }
-
-    if (users.length < 2) {
-      toast.warning("Ít nhất 2 người 😅");
-      return;
-    }
-
-    onDone({
-      name: groupName,
-      users,
-    });
-  };
-
-  // ================= JOIN GROUP =================
-  const handleJoin = (id = groupId) => {
-    if (!id) return toast.warning("Nhập mã nhóm 😑");
-    onJoin(id);
-  };
-
   // ================= LOAD GROUPS =================
   const loadGroups = async () => {
     try {
       setLoading(true);
       const res = await getAllGroups();
-      setGroups(res.data);
+      setGroups(res.data || []);
     } catch {
       toast.error("Load nhóm lỗi ❌");
     } finally {
@@ -122,65 +68,102 @@ export default function ParticipantSetup({ onDone, onJoin }) {
   }, [mode]);
 
   useEffect(() => {
-    resetColors();
-    setUsers([]);
-    setGroupName("");
+    return () => resetColors();
+  }, []);
+
+  // ================= USERS =================
+  const addUser = () => {
+    const name = input.trim();
+    if (!name) return;
+
+    if (users.some(u => u.name === name)) {
+      return toast.warning("Tên bị trùng 😑");
+    }
+
+    setUsers(prev => [
+      ...prev,
+      {
+        name,
+        avatar: name[0].toUpperCase(),
+        color: getColor(),
+      },
+    ]);
+
     setInput("");
-    setGroupId("");
-  }, [mode]);
+  };
+
+  const removeUser = (index) => {
+    setUsers(prev => prev.filter((_, i) => i !== index));
+  };
+
+  // ================= CREATE GROUP =================
+  const handleCreate = () => {
+    if (!groupName.trim()) return toast.warning("Nhập tên nhóm");
+    if (users.length < 2) return toast.warning("Ít nhất 2 người");
+
+    const code = Math.random().toString(36).substring(2, 8).toUpperCase();
+
+    const payload = {
+      id: code,
+      name: groupName,
+      users,
+      createdAt: new Date().toISOString(),
+    };
+
+    console.log("📦 CREATE:", payload);
+
+    onDone(payload);
+    toast.success(`Group code: ${code}`);
+  };
 
   // ================= DELETE GROUP =================
   const handleDelete = async (id) => {
-    const result = await Swal.fire({
-      title: "Xoá nhóm này?",
-      text: "Toàn bộ chi tiêu liên quan cũng sẽ bị xoá!",
-      icon: "warning",
+    const { value: password } = await Swal.fire({
+      title: "Nhập mật khẩu xoá",
+      input: "password",
+      inputPlaceholder: "matkhau123",
       showCancelButton: true,
       confirmButtonText: "Xoá",
-      cancelButtonText: "Huỷ",
+      background: "#0b1220",
+      color: "#fff",
     });
 
-    if (!result.isConfirmed) return;
+    if (!password) return;
 
-    const toastSwal = Swal.mixin({
-      toast: true,
-      position: "top-end",
-      showConfirmButton: false,
-      timer: 1500,
-      timerProgressBar: true,
+    if (password !== "matkhau123") {
+      return toast.error("Sai mật khẩu ❌");
+    }
+
+    const confirm = await Swal.fire({
+      title: "Xác nhận xoá?",
+      text: "Không thể hoàn tác",
+      showCancelButton: true,
+      confirmButtonText: "Xoá",
+      background: "#0b1220",
+      color: "#fff",
     });
 
-    toastSwal.fire({
-      icon: "info",
-      title: "Đang xoá...",
-    });
+    if (!confirm.isConfirmed) return;
 
     try {
-      await Promise.all([
-        deleteGroup(id),
-        deleteExpenseByGroupId(id),
-      ]);
+      await deleteExpenseByGroupId(id);
+      await deleteGroup(id);
 
-      setGroups((prev) => prev.filter((g) => g.id !== id));
+      setGroups(prev => prev.filter(g => g.id !== id));
 
-      toastSwal.fire({
-        icon: "success",
-        title: "Xoá thành công 🗑️",
-      });
+      toast.success("Đã xoá 🗑️");
     } catch {
-      toastSwal.fire({
-        icon: "error",
-        title: "Xoá thất bại ❌",
-      });
+      toast.error("Xoá lỗi ❌");
     }
   };
 
+  // ================= TAB =================
   const Tab = ({ id, label }) => (
     <button
       onClick={() => setMode(id)}
       className={`px-4 py-2 rounded-full text-sm transition ${
         mode === id
-          ? "bg-cyan-500 text-black font-semibold"
+          ? "bg-cyan-500 text-black font-bold"
           : "bg-white/10 text-gray-300"
       }`}
     >
@@ -188,39 +171,44 @@ export default function ParticipantSetup({ onDone, onJoin }) {
     </button>
   );
 
+  // ================= ANIMATION FIX =================
+  const pageVariants = {
+    initial: { opacity: 0, x: 10 },
+    animate: { opacity: 1, x: 0 },
+    exit: { opacity: 0, x: -10 },
+  };
+
   // ================= UI =================
   return (
     <div className="min-h-screen flex items-center justify-center bg-[#0b1220] text-white p-4">
-      <motion.div
-        initial={{ opacity: 0, scale: 0.95 }}
-        animate={{ opacity: 1, scale: 1 }}
-        className="w-[380px] bg-white/5 backdrop-blur-xl border border-white/10 rounded-3xl p-5 space-y-5"
-      >
-        <div className="text-center">
-          <h2 className="text-xl font-bold">👥 Group Setup</h2>
-        </div>
+      <motion.div className="w-[380px] bg-white/5 backdrop-blur-xl border border-white/10 rounded-3xl p-5 space-y-5">
 
-        {/* TABS */}
+        <h2 className="text-center text-xl font-bold">👥 Group Setup</h2>
+
+        {/* TAB */}
         <div className="flex gap-2 justify-center">
           <Tab id="create" label="Tạo" />
-          <Tab id="join" label="Join" />
           <Tab id="list" label="DS" />
         </div>
 
+        {/* ANIMATION FIX */}
         <AnimatePresence mode="wait">
           <motion.div
             key={mode}
-            initial={{ opacity: 0, x: 20 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: -20 }}
+            variants={pageVariants}
+            initial="initial"
+            animate="animate"
+            exit="exit"
+            transition={{ duration: 0.25 }}
             className="space-y-4"
           >
+
             {/* CREATE */}
             {mode === "create" && (
               <>
                 <input
                   value={groupName}
-                  onChange={(e) => setGroupName(e.target.value)}
+                  onChange={e => setGroupName(e.target.value)}
                   placeholder="Tên nhóm..."
                   className="w-full bg-white/10 px-4 py-3 rounded-2xl outline-none"
                 />
@@ -228,8 +216,8 @@ export default function ParticipantSetup({ onDone, onJoin }) {
                 <div className="flex gap-2">
                   <input
                     value={input}
-                    onChange={(e) => setInput(e.target.value)}
-                    onKeyDown={(e) => e.key === "Enter" && addUser()}
+                    onChange={e => setInput(e.target.value)}
+                    onKeyDown={e => e.key === "Enter" && addUser()}
                     placeholder="Nhập tên..."
                     className="flex-1 bg-white/10 px-4 py-3 rounded-2xl outline-none"
                   />
@@ -241,56 +229,24 @@ export default function ParticipantSetup({ onDone, onJoin }) {
                   </button>
                 </div>
 
-                {/* ================= UX IMPROVED SECTION ================= */}
-                <div className="space-y-2">
-                  {/* GUIDE */}
-                  <div className="text-xs text-cyan-300 bg-cyan-500/10 px-3 py-2 rounded-xl border border-cyan-500/20">
-                    💡 Thêm tất cả thành viên sẽ tham gia chia tiền trong nhóm
-                  </div>
-
-                  {/* HINT */}
-                  <div className="text-[11px] text-gray-400">
-                    👉 Nhập tên rồi bấm + hoặc Enter để thêm thành viên
-                  </div>
-
-                  {/* USERS */}
-                  <div className="flex flex-wrap gap-2">
-                    {users.map((u, i) => (
-                      <div
-                        key={i}
-                        className="flex items-center gap-2 px-3 py-1 rounded-full text-white"
-                        style={{ backgroundColor: u.color }}
-                      >
-                        {u.avatar} {u.name}
-                        <button onClick={() => removeUser(i)}>✕</button>
-                      </div>
-                    ))}
-                  </div>
+                <div className="flex flex-wrap gap-2">
+                  {users.map((u, i) => (
+                    <div
+                      key={i}
+                      className="px-3 py-1 rounded-full flex items-center gap-2"
+                      style={{ background: u.color }}
+                    >
+                      {u.avatar} {u.name}
+                      <button onClick={() => removeUser(i)}>✕</button>
+                    </div>
+                  ))}
                 </div>
 
                 <button
                   onClick={handleCreate}
-                  className="w-full py-3 rounded-2xl bg-gradient-to-r from-cyan-500 to-blue-600 font-semibold"
+                  className="w-full py-3 rounded-2xl bg-gradient-to-r from-cyan-500 to-blue-600 font-bold"
                 >
-                  🚀 Tạo nhóm
-                </button>
-              </>
-            )}
-
-            {/* JOIN */}
-            {mode === "join" && (
-              <>
-                <input
-                  value={groupId}
-                  onChange={(e) => setGroupId(e.target.value)}
-                  placeholder="Nhập mã nhóm..."
-                  className="w-full bg-white/10 px-4 py-3 rounded-2xl outline-none"
-                />
-                <button
-                  onClick={() => handleJoin()}
-                  className="w-full py-3 rounded-2xl bg-green-500 text-black font-semibold"
-                >
-                  Vào nhóm
+                  🚀 Tạo group
                 </button>
               </>
             )}
@@ -298,9 +254,9 @@ export default function ParticipantSetup({ onDone, onJoin }) {
             {/* LIST */}
             {mode === "list" && (
               <div className="space-y-3 max-h-[260px] overflow-y-auto">
-                {loading && <div className="text-gray-400">Loading...</div>}
+                {loading && <div>Loading...</div>}
 
-                {groups.map((g) => (
+                {groups.map(g => (
                   <div
                     key={g.id}
                     className="bg-white/10 p-3 rounded-2xl flex justify-between"
@@ -308,30 +264,24 @@ export default function ParticipantSetup({ onDone, onJoin }) {
                     <div>
                       <div className="font-semibold">{g.name}</div>
                       <div className="text-xs text-gray-400">
-                        {g.users?.length || 0} members
+                        CODE: {g.id}
                       </div>
                     </div>
 
-                    <div className="flex gap-2">
-                      <button
-                        onClick={() => handleJoin(g.id)}
-                        className="bg-blue-500 px-3 py-1 rounded-xl"
-                      >
-                        Vào
-                      </button>
-                      <button
-                        onClick={() => handleDelete(g.id)}
-                        className="bg-red-500 px-3 py-1 rounded-xl"
-                      >
-                        Xoá
-                      </button>
-                    </div>
+                    <button
+                      onClick={() => handleDelete(g.id)}
+                      className="bg-red-500 px-3 py-1 rounded-xl"
+                    >
+                      Xoá
+                    </button>
                   </div>
                 ))}
               </div>
             )}
+
           </motion.div>
         </AnimatePresence>
+
       </motion.div>
     </div>
   );
