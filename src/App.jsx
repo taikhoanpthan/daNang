@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState, useCallback } from "react";
+
 import {
   getExpenses,
   deleteExpense,
@@ -28,14 +29,13 @@ function App() {
     if (id) handleJoinGroup(id);
   }, []);
 
-  // ================= LOAD EXPENSES (OPTIMIZED) =================
+  // ================= LOAD EXPENSES =================
   const loadData = useCallback(async (id) => {
     try {
       setLoading(true);
       const res = await getExpenses();
 
-      const data = res.data;
-      const filtered = data.filter(
+      const filtered = (res.data || []).filter(
         (e) => String(e.groupId) === String(id)
       );
 
@@ -63,6 +63,7 @@ function App() {
       setIsSetup(true);
 
       window.history.pushState({}, "", `?groupId=${id}`);
+
       loadData(id);
 
       toast.success("Tạo nhóm thành công 🎉");
@@ -72,36 +73,45 @@ function App() {
   };
 
   // ================= JOIN GROUP =================
-  const handleJoinGroup = useCallback(async (id) => {
-    try {
-      const res = await getGroup(id);
-      const group = res.data;
+  const handleJoinGroup = useCallback(
+    async (group) => {
+      try {
+        // 👇 FIX QUAN TRỌNG: ParticipantSetup gửi object chứ không phải id
+        const id = typeof group === "string" ? group : group.id;
 
-      setUsers(group.users || []);
-      setGroupName(group.name || "");
-      setGroupId(id);
-      setIsSetup(true);
+        const res = await getGroup(id);
+        const data = res.data;
 
-      window.history.pushState({}, "", `?groupId=${id}`);
-      loadData(id);
-    } catch {
-      toast.error("Không tìm thấy nhóm ❌");
-    }
-  }, [loadData]);
+        setUsers(data.users || []);
+        setGroupName(data.name || "");
+        setGroupId(id);
+        setIsSetup(true);
 
-  // ================= DELETE EXPENSE (OPTIMISTIC UI) =================
-  const handleDelete = useCallback(async (id) => {
-    // UI update trước (mượt hơn)
-    setExpenses((prev) => prev.filter((e) => e.id !== id));
+        window.history.pushState({}, "", `?groupId=${id}`);
 
-    try {
-      await deleteExpense(id);
-      toast.success("Đã xoá 🗑️");
-    } catch {
-      toast.error("Xoá thất bại ❌");
-      loadData(groupId); // rollback nếu lỗi
-    }
-  }, [groupId, loadData]);
+        loadData(id);
+      } catch {
+        toast.error("Không tìm thấy nhóm ❌");
+      }
+    },
+    [loadData]
+  );
+
+  // ================= DELETE EXPENSE =================
+  const handleDelete = useCallback(
+    async (id) => {
+      setExpenses((prev) => prev.filter((e) => e.id !== id));
+
+      try {
+        await deleteExpense(id);
+        toast.success("Đã xoá 🗑️");
+      } catch {
+        toast.error("Xoá thất bại ❌");
+        loadData(groupId);
+      }
+    },
+    [groupId, loadData]
+  );
 
   // ================= RESET =================
   const reset = useCallback(() => {
@@ -113,7 +123,7 @@ function App() {
     window.history.pushState({}, "", "/");
   }, []);
 
-  // ================= DERIVED STATE (MEMOIZED) =================
+  // ================= BALANCE =================
   const balances = useMemo(() => {
     return calculateBalances(expenses);
   }, [expenses]);
@@ -123,7 +133,7 @@ function App() {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-[#0b1220] via-[#0f172a] to-[#111827]">
         <ParticipantSetup
-          onDone={handleCreateGroup}
+          onCreate={handleCreateGroup}
           onJoin={handleJoinGroup}
         />
         <ToastContainer position="top-center" autoClose={2000} />

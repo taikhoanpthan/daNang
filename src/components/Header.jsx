@@ -1,4 +1,4 @@
-import { Wallet, Users, Copy, Sparkles } from "lucide-react";
+import { Wallet, Users, Copy, Sparkles, LogOut } from "lucide-react";
 import { motion } from "framer-motion";
 import { toast } from "react-toastify";
 import Swal from "sweetalert2";
@@ -27,57 +27,30 @@ export default function Header({
     try {
       const link = `${window.location.origin}?groupId=${groupId}`;
       await navigator.clipboard.writeText(link);
-      toast.success("Đã copy link nhóm 📎");
+      toast.success("Đã copy link 📎");
     } catch {
       toast.error("Copy thất bại ❌");
     }
   };
 
-  // ================= MOBILE DETECT =================
-  const isMobile = /iPhone|Android|iPad/i.test(navigator.userAgent);
-
-  // ================= RESET (FIX LAG) =================
+  // ================= RESET =================
   const handleReset = async () => {
-    // 👉 MOBILE: dùng confirm native (nhanh, không lag)
-    if (isMobile) {
-      const ok = window.confirm("Bạn có muốn rời nhóm không?");
-      if (!ok) return;
-
-      onResetUsers();
-      toast.success("Đã rời nhóm 👋");
-      return;
-    }
-
-    // 👉 DESKTOP: SweetAlert2 (giữ đẹp)
     const result = await Swal.fire({
       title: "Rời nhóm?",
-      text: "Bạn sẽ cần join lại nếu muốn quay lại",
+      text: "Bạn có chắc muốn rời nhóm này không?",
       icon: "warning",
       showCancelButton: true,
-      confirmButtonText: "Đồng ý",
+      confirmButtonText: "Rời",
       cancelButtonText: "Huỷ",
-
-      // 🔥 FIX LAG: tắt animation
-      showClass: { popup: "" },
-      hideClass: { popup: "" },
-      allowOutsideClick: false,
+      background: "#0b1220",
+      color: "#fff",
+      confirmButtonColor: "#ef4444",
     });
 
     if (!result.isConfirmed) return;
 
-    // 👉 tránh block UI
-    requestAnimationFrame(() => {
-      onResetUsers();
-
-      Swal.fire({
-        icon: "success",
-        title: "Đã rời nhóm",
-        timer: 900,
-        showConfirmButton: false,
-        showClass: { popup: "" },
-        hideClass: { popup: "" },
-      });
-    });
+    onResetUsers();
+    toast.success("Đã rời nhóm 👋");
   };
 
   // ================= UI =================
@@ -85,11 +58,11 @@ export default function Header({
     <motion.div
       initial={{ opacity: 0, y: -10 }}
       animate={{ opacity: 1, y: 0 }}
-      className="relative overflow-hidden rounded-3xl p-5 text-white shadow-2xl border border-white/10"
+      className="relative overflow-hidden rounded-3xl p-5 text-white border border-white/10 shadow-xl"
     >
       {/* BACKGROUND */}
       <div className="absolute inset-0 bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-500" />
-      <div className="absolute inset-0 bg-black/25 backdrop-blur-md" />
+      <div className="absolute inset-0 bg-black/30 backdrop-blur-md" />
 
       <div className="relative z-10 space-y-5">
 
@@ -115,7 +88,7 @@ export default function Header({
             </div>
           </div>
 
-          {/* RIGHT */}
+          {/* RIGHT ICON */}
           <div className="bg-white/20 p-2 rounded-xl">
             <Users size={18} />
           </div>
@@ -137,17 +110,28 @@ export default function Header({
 
             <button
               onClick={handleCopy}
-              className="bg-white/15 p-1.5 rounded-full active:scale-95 transition"
+              className="bg-white/15 p-2 rounded-full hover:bg-white/25 active:scale-95 transition"
             >
               <Copy size={14} />
             </button>
           </div>
 
-          {/* ACTION */}
+          {/* ACTION BUTTON (FIX UI) */}
           <button
             onClick={handleReset}
-            className="bg-red-500 hover:bg-red-600 active:scale-95 px-4 py-1.5 rounded-xl font-semibold transition"
+            className="
+              flex items-center gap-2
+              bg-gradient-to-r from-red-500 to-pink-600
+              hover:from-red-600 hover:to-pink-700
+              active:scale-95
+              px-4 py-2
+              rounded-xl
+              font-semibold
+              shadow-lg
+              transition
+            "
           >
+            <LogOut size={14} />
             Rời nhóm
           </button>
 
