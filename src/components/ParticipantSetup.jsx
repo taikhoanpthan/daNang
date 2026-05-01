@@ -109,13 +109,14 @@ export default function ParticipantSetup({ onCreate, onJoin }) {
       createdAt: new Date().toISOString(),
     };
 
-    if (onCreate) onCreate(payload);
+    onCreate?.(payload);
 
     toast.success("Tạo nhóm thành công 🚀");
 
     setGroupName("");
     setUsers([]);
     setInput("");
+    resetColors();
   };
 
   // ================= DELETE GROUP =================
@@ -123,7 +124,6 @@ export default function ParticipantSetup({ onCreate, onJoin }) {
     const { value: password } = await Swal.fire({
       title: "🔒 Nhập mật khẩu xoá",
       input: "password",
-      inputPlaceholder: "Nhập mật khẩu",
       showCancelButton: true,
       confirmButtonText: "Xoá",
       cancelButtonText: "Huỷ",
@@ -171,6 +171,13 @@ export default function ParticipantSetup({ onCreate, onJoin }) {
     }
   };
 
+  // ================= ANIMATION =================
+  const variants = {
+    initial: { opacity: 0, x: 40 },
+    animate: { opacity: 1, x: 0 },
+    exit: { opacity: 0, x: -40 },
+  };
+
   // ================= UI =================
   return (
     <div className="min-h-screen flex items-center justify-center bg-[#0b1220] text-white p-4">
@@ -182,8 +189,10 @@ export default function ParticipantSetup({ onCreate, onJoin }) {
         <div className="flex gap-2 justify-center">
           <button
             onClick={() => setMode("create")}
-            className={`px-4 py-2 rounded-full ${
-              mode === "create" ? "bg-cyan-500 text-black" : "bg-white/10"
+            className={`px-4 py-2 rounded-full transition ${
+              mode === "create"
+                ? "bg-cyan-500 text-black"
+                : "bg-white/10 hover:bg-white/20"
             }`}
           >
             Tạo
@@ -191,17 +200,27 @@ export default function ParticipantSetup({ onCreate, onJoin }) {
 
           <button
             onClick={() => setMode("list")}
-            className={`px-4 py-2 rounded-full ${
-              mode === "list" ? "bg-cyan-500 text-black" : "bg-white/10"
+            className={`px-4 py-2 rounded-full transition ${
+              mode === "list"
+                ? "bg-cyan-500 text-black"
+                : "bg-white/10 hover:bg-white/20"
             }`}
           >
             Danh sách
           </button>
         </div>
 
+        {/* CONTENT */}
         <AnimatePresence mode="wait">
-          <motion.div key={mode} className="space-y-4">
-
+          <motion.div
+            key={mode}
+            variants={variants}
+            initial="initial"
+            animate="animate"
+            exit="exit"
+            transition={{ duration: 0.35, ease: "easeInOut" }}
+            className="space-y-4"
+          >
             {/* CREATE */}
             {mode === "create" && (
               <>
@@ -260,7 +279,6 @@ export default function ParticipantSetup({ onCreate, onJoin }) {
                     key={g.id}
                     className="bg-white/10 p-3 rounded-2xl flex justify-between items-center"
                   >
-                    {/* INFO */}
                     <div>
                       <div className="font-semibold">{g.name}</div>
                       <div className="text-xs text-gray-400">
@@ -268,16 +286,9 @@ export default function ParticipantSetup({ onCreate, onJoin }) {
                       </div>
                     </div>
 
-                    {/* ACTION */}
                     <div className="flex gap-2">
                       <button
-                        onClick={() => {
-                          if (onJoin) {
-                            onJoin(g); // 👈 FIX CHÍNH: không lỗi object nữa
-                          } else {
-                            console.log("JOIN GROUP:", g);
-                          }
-                        }}
+                        onClick={() => onJoin?.(g)}
                         className="bg-cyan-500 text-black px-3 py-1 rounded-xl font-medium"
                       >
                         Vào
@@ -294,7 +305,6 @@ export default function ParticipantSetup({ onCreate, onJoin }) {
                 ))}
               </div>
             )}
-
           </motion.div>
         </AnimatePresence>
       </motion.div>
